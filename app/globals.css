@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ─── Light theme (public pages, driver app, contractor portal) ─── */
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 215 35% 20%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 35% 20%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 35% 20%;
+    --primary: 213 59% 26%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 60% 53%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 15% 95%;
+    --muted-foreground: 215 10% 45%;
+    --accent: 100 49% 47%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 213 59% 26%;
+    --radius: 0.5rem;
+
+    /* Tippd custom tokens — Metro palette */
+    --tippd-navy: #1B3A6B;
+    --tippd-blue: #2E86DE;
+    --tippd-green: #6DB33F;
+    --tippd-ink: #0F1B2D;
+    --tippd-steel: #1E2A3E;
+    --tippd-charcoal: #142236;
+    --tippd-graphite: #2C3E56;
+    --tippd-ash: #5A6B7D;
+    --tippd-smoke: #8899AA;
+    --tippd-bone: #D6DEE6;
+    --tippd-cream: #F4F7FA;
+  }
+
+  /* ─── Dark theme (owner/manager dashboard) ─── */
+  .dark {
+    --background: 217 30% 8%;
+    --foreground: 210 15% 93%;
+    --card: 217 25% 12%;
+    --card-foreground: 210 15% 93%;
+    --popover: 217 25% 12%;
+    --popover-foreground: 210 15% 93%;
+    --primary: 210 60% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 20% 18%;
+    --secondary-foreground: 210 15% 93%;
+    --muted: 217 20% 18%;
+    --muted-foreground: 210 10% 55%;
+    --accent: 100 49% 47%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 100% / 10%;
+    --input: 0 0% 100% / 15%;
+    --ring: 210 60% 53%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

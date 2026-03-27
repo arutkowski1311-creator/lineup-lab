@@ -1,0 +1,97 @@
+import { getAuthContext, json, error } from "@/lib/api-helpers";
+import { z } from "zod";
+import { validateJobTransition } from "@/lib/state-machines";
+import type { JobStatus } from "@/types/job";
+
+const statusSchema = z.object({
+  status: z.enum([
+    "pending_approval", "scheduled", "en_route_drop", "dropped", "active",
+    "pickup_requested", "pickup_scheduled", "en_route_pickup", "picked_up",
+    "invoiced", "paid", "cancelled", "disputed",
+  ]),
+});
+
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const ctx = await getAuthContext(["owner", "manager", "driver"]);
+  if ("error" in ctx) return ctx.error;
+
+  const body = await request.json();
+  const parsed = statusSchema.safeParse(body);
+  if (!parsed.success) return error(parsed.error.message);
+
+  // Get current job
+  const { data: job, error: fetchError } = await ctx.supabase
+    .from("jobs")
+    .select("*")
+    .eq("id", params.id)
+    .eq("operator_id", ctx.operatorId)
+    .single();
+
+  if (fetchError || !job) return error("Job not found", 404);
+
+  const currentStatus = job.status as JobStatus;
+  const newStatus = parsed.data.status;
+
+  // Enforce state machine
+  const validation = validateJobTransition(currentStatus, newStatus, {
+    hasDropPhoto: (job.photos_drop as string[])?.length > 0,
+    hasPickupPhoto: (job.photos_pickup as string[])?.length > 0,
+    hasWeight: job.weight_lbs != null,
+    hasDumpster: job.dumpster_id != null,
+    hasTruck: job.truck_id != null,
+    hasDriver: job.assigned_driver_id != null,
+  });
+
+  if (!validation.valid) {
+    return error(validation.reason || "Invalid transition", 422);
+  }
+
+  // Build update payload with auto-timestamps
+  const update: Record<string, unknown> = { status: newStatus };
+
+  if (newStatus === "dropped") {
+    update.actual_drop_time = new Date().toISOString();
+
+    // Auto-schedule pickup based on operator's standard_rental_days
+    const { data: operator } = await ctx.supabase
+      .from("operators")
+      .select("standard_rental_days")
+      .eq("id", ctx.operatorId)
+      .single();
+
+    const rentalDays = (operator as any)?.standard_rental_days ?? 7;
+    const pickupDate = new Date();
+    pickupDate.setDate(pickupDate.getDate() + rentalDays);
+    // Set pickup window for 7am-5pm on the scheduled pickup day
+    const pickupDay = pickupDate.toISOString().split("T")[0];
+    update.requested_pickup_start = `${pickupDay}T07:00:00`;
+    update.requested_pickup_end = `${pickupDay}T17:00:00`;
+  }
+
+  if (newStatus === "picked_up") {
+    update.actual_pickup_time = new Date().toISOString();
+
+    // Calculate days on site
+    if (job.actual_drop_time) {
+      const dropDate = new Date(job.actual_drop_time as string);
+      const now = new Date();
+      const daysOnSite = Math.ceil(
+        (now.getTime() - dropDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
+      update.days_on_site = daysOnSite;
+    }
+  }
+
+  const { data, error: dbError } = await ctx.supabase
+    .from("jobs")
+    .update(update)
+    .eq("id", params.id)
+    .select()
+    .single();
+
+  if (dbError) return error(dbError.message);
+  return json(data);
+}
