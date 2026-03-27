@@ -19,10 +19,8 @@ export async function POST(
   if ("error" in ctx) return ctx.error;
 
   const body = await request.json();
-  const parsed = statusSchema.safeParse(body);
-  if (!parsed.success) return error(parsed.error.message);
 
-  // Get current job
+  // Get current job first (needed for action-to-status mapping)
   const { data: job, error: fetchError } = await ctx.supabase
     .from("jobs")
     .select("*")
@@ -33,7 +31,31 @@ export async function POST(
   if (fetchError || !job) return error("Job not found", 404);
 
   const currentStatus = job.status as JobStatus;
-  const newStatus = parsed.data.status;
+
+  // Support both formats: { status: "dropped" } or { action: "arrived" }
+  let newStatus: string;
+  if (body.status) {
+    const parsed = statusSchema.safeParse(body);
+    if (!parsed.success) return error(parsed.error.message);
+    newStatus = parsed.data.status;
+  } else if (body.action) {
+    // Map driver actions to job statuses
+    const actionMap: Record<string, string> = {
+      arrived: currentStatus === "pickup_scheduled" ? "en_route_pickup" : "en_route_drop",
+      dropped: "dropped",
+      picked_up: "picked_up",
+      dump_arrived: currentStatus, // no job status change for dump
+      dump_complete: currentStatus, // no job status change for dump
+    };
+    newStatus = actionMap[body.action] || currentStatus;
+
+    // For dump actions, just return ok without changing status
+    if (body.action === "dump_arrived" || body.action === "dump_complete") {
+      return json({ ok: true, status: currentStatus });
+    }
+  } else {
+    return error("status or action required");
+  }
 
   // Enforce state machine
   const validation = validateJobTransition(currentStatus, newStatus, {
@@ -93,5 +115,14 @@ export async function POST(
     .single();
 
   if (dbError) return error(dbError.message);
-  return json(data);
+
+  // Update dumpster condition if provided (after pickup)
+  if (body.condition && job.dumpster_id) {
+    await ctx.supabase
+      .from("dumpsters")
+      .update({ condition_grade: body.condition })
+      .eq("id", job.dumpster_id);
+  }
+
+  return json({ ok: true, ...data });
 }

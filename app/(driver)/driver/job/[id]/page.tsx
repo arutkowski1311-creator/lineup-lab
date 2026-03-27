@@ -220,36 +220,19 @@ export default function DriverJobPage() {
       const isGenerated = segmentId.startsWith("generated-");
 
       if (isGenerated && segment?.job_id) {
-        // Generated segments aren't in the DB — update the job directly
-        const { createClient } = await import("@/lib/supabase/client");
-        const supabase = createClient();
-
-        const statusMap: Record<string, string> = {
-          arrived: segment.type === "pickup" ? "en_route_pickup" : "en_route_drop",
-          dropped: "dropped",
-          picked_up: "picked_up",
-          dump_arrived: segment.status || "en_route_pickup",
-          dump_complete: segment.status || "picked_up",
-        };
-
-        const newStatus = statusMap[action] || undefined;
-        const updates: Record<string, any> = {};
-        if (newStatus) updates.status = newStatus;
-        if (action === "dropped") updates.actual_drop_time = new Date().toISOString();
-        if (action === "picked_up") updates.actual_pickup_time = new Date().toISOString();
-        if (extra?.notes) updates.driver_notes = extra.notes;
-
-        if (Object.keys(updates).length > 0) {
-          await supabase.from("jobs").update(updates).eq("id", segment.job_id);
-        }
-
-        // Update dumpster condition if graded
-        if (action === "picked_up" && condition && segment.box_id) {
-          await supabase.from("dumpsters").update({ condition_grade: condition }).eq("id", segment.box_id);
-        }
-
+        // Generated segments aren't in the DB — update the job via API
+        const res = await fetch(`/api/jobs/${segment.job_id}/status`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            condition: condition || undefined,
+            notes: extra?.notes || notes || undefined,
+          }),
+        });
+        const data = await res.json();
         setProcessing(false);
-        return { ok: true };
+        return data?.error ? { ok: false } : { ok: true };
       }
 
       // Real segment in the database
