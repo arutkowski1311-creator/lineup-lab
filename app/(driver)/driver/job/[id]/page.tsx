@@ -87,6 +87,7 @@ export default function DriverJobPage() {
   const segmentId = params.id as string;
 
   const [segment, setSegment] = useState<SegmentData | null>(null);
+  const [realSegmentId, setRealSegmentId] = useState<string>(segmentId);
   const [loading, setLoading] = useState(true);
   const [phase, setPhase] = useState<StopPhase>("loading");
   const [photos, setPhotos] = useState<string[]>([]);
@@ -131,17 +132,24 @@ export default function DriverJobPage() {
       }
       const data = await res.json();
       const segs = data.segments || [];
-      const seg = segs.find((s: any) => s.id === segmentId);
+      // Find segment by ID first, then by job_id (URL might pass either)
+      let seg = segs.find((s: any) => s.id === segmentId);
+      if (!seg) {
+        seg = segs.find((s: any) => s.job_id === segmentId);
+      }
 
       if (!seg) {
-        router.push("/driver");
+        // Still not found — could be a stale link. Show error instead of redirecting
+        setSegment(null);
         return;
       }
 
       // Find next segment
-      const idx = segs.findIndex((s: any) => s.id === segmentId);
+      const idx = segs.findIndex((s: any) => s.id === seg.id);
       const nextSeg = idx >= 0 && idx < segs.length - 1 ? segs[idx + 1] : null;
 
+      // Store the real segment ID for API calls
+      setRealSegmentId(seg.id);
       setSegment({ ...seg, next_segment: nextSeg });
 
       // Determine initial phase based on status and type
@@ -217,7 +225,7 @@ export default function DriverJobPage() {
   async function sendAction(action: string, extra?: Record<string, any>) {
     setProcessing(true);
     try {
-      const isGenerated = segmentId.startsWith("generated-");
+      const isGenerated = realSegmentId.startsWith("generated-");
 
       if (isGenerated && segment?.job_id) {
         // Generated segments aren't in the DB — update the job via API
@@ -236,7 +244,7 @@ export default function DriverJobPage() {
       }
 
       // Real segment in the database
-      const res = await fetch(`/api/driver/segment/${segmentId}`, {
+      const res = await fetch(`/api/driver/segment/${realSegmentId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
