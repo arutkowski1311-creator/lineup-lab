@@ -60,78 +60,56 @@ export async function GET(request: Request) {
     });
   }
 
-  // Fallback: build segments from jobs assigned to this driver OR their truck
-  // First try by driver ID
-  let { data: jobs } = await supabase
-    .from("jobs")
-    .select(`
-      id, customer_name, customer_phone, drop_address, drop_lat, drop_lng,
-      job_type, status, dumpster_id, dumpster_unit_number, truck_id,
-      dumpsters!jobs_dumpster_id_fkey ( id, unit_number, size, condition_grade )
-    `)
-    .eq("assigned_driver_id", user.id)
-    .in("status", [
-      "scheduled",
-      "en_route_drop",
-      "dropped",
-      "pickup_scheduled",
-      "en_route_pickup",
-    ])
-    .order("requested_drop_start", { ascending: true }) as any;
+  // Get truck_id from query param (driver picks their truck)
+  const url = new URL(request.url);
+  const truckId = url.searchParams.get("truck_id");
 
-  // If no jobs by driver, try by truck_id (from query param or any truck with jobs)
-  if (!jobs || jobs.length === 0) {
-    const url = new URL(request.url);
-    const truckId = url.searchParams.get("truck_id");
+  // Only show jobs that need a driver action today:
+  // scheduled = needs to be dropped off
+  // en_route_drop = currently heading to drop
+  // pickup_scheduled = needs to be picked up
+  // en_route_pickup = currently heading to pickup
+  const ACTIONABLE_STATUSES = ["scheduled", "en_route_drop", "pickup_scheduled", "en_route_pickup"];
 
-    if (truckId) {
-      const result = await supabase
-        .from("jobs")
-        .select(`
-          id, customer_name, customer_phone, drop_address, drop_lat, drop_lng,
-          job_type, status, dumpster_id, dumpster_unit_number, truck_id,
-          dumpsters!jobs_dumpster_id_fkey ( id, unit_number, size, condition_grade )
-        `)
-        .eq("truck_id", truckId)
-        .in("status", [
-          "scheduled",
-          "en_route_drop",
-          "dropped",
-          "pickup_scheduled",
-          "en_route_pickup",
-        ])
-        .order("requested_drop_start", { ascending: true }) as any;
-      jobs = result.data;
+  let jobs: any[] = [];
 
-      // Also assign the driver to these jobs
-      if (jobs && jobs.length > 0) {
-        for (const job of jobs) {
-          await supabase
-            .from("jobs")
-            .update({ assigned_driver_id: user.id })
-            .eq("id", job.id);
-        }
+  if (truckId) {
+    // Load jobs for the specific truck
+    const result = await supabase
+      .from("jobs")
+      .select(`
+        id, customer_name, customer_phone, drop_address, drop_lat, drop_lng,
+        job_type, status, dumpster_id, dumpster_unit_number, truck_id,
+        dumpsters!jobs_dumpster_id_fkey ( id, unit_number, size, condition_grade )
+      `)
+      .eq("truck_id", truckId)
+      .in("status", ACTIONABLE_STATUSES)
+      .order("requested_drop_start", { ascending: true }) as any;
+    jobs = result.data || [];
+  } else {
+    // No truck specified — try by driver assignment
+    const result = await supabase
+      .from("jobs")
+      .select(`
+        id, customer_name, customer_phone, drop_address, drop_lat, drop_lng,
+        job_type, status, dumpster_id, dumpster_unit_number, truck_id,
+        dumpsters!jobs_dumpster_id_fkey ( id, unit_number, size, condition_grade )
+      `)
+      .eq("assigned_driver_id", user.id)
+      .in("status", ACTIONABLE_STATUSES)
+      .order("requested_drop_start", { ascending: true }) as any;
+    jobs = result.data || [];
+  }
+
+  // Assign driver to these jobs if not already
+  if (jobs.length > 0) {
+    for (const job of jobs) {
+      if (job.assigned_driver_id !== user.id) {
+        await supabase
+          .from("jobs")
+          .update({ assigned_driver_id: user.id })
+          .eq("id", job.id);
       }
-    } else {
-      // No truck specified — try to find any truck with jobs assigned
-      const result = await supabase
-        .from("jobs")
-        .select(`
-          id, customer_name, customer_phone, drop_address, drop_lat, drop_lng,
-          job_type, status, dumpster_id, dumpster_unit_number, truck_id,
-          dumpsters!jobs_dumpster_id_fkey ( id, unit_number, size, condition_grade )
-        `)
-        .not("truck_id", "is", null)
-        .in("status", [
-          "scheduled",
-          "en_route_drop",
-          "dropped",
-          "pickup_scheduled",
-          "en_route_pickup",
-        ])
-        .order("requested_drop_start", { ascending: true })
-        .limit(20) as any;
-      jobs = result.data;
     }
   }
 
@@ -235,6 +213,19 @@ export async function GET(request: Request) {
     planned_total_minutes: 15,
     planned_drive_miles: 8,
   });
+
+  // Mark the first actionable segment as "active"
+  let foundFirst = false;
+  for (const seg of builtSegments) {
+    if (!foundFirst && seg.status === "pending" && ["drop", "pickup", "dump"].includes(seg.type)) {
+      seg.status = "active";
+      foundFirst = true;
+    }
+  }
+  // Also mark yard_depart as completed (driver starts from yard)
+  if (builtSegments.length > 0 && builtSegments[0].type === "yard_depart") {
+    builtSegments[0].status = "completed";
+  }
 
   return NextResponse.json({
     segments: builtSegments,

@@ -395,11 +395,9 @@ export default function DriverRoute() {
           const isActive = seg.status === "active";
           const isCompleted = seg.status === "completed";
 
-          // Build the href for tappable segments
-          const href =
-            isActive && (seg.type === "drop" || seg.type === "pickup" || seg.type === "dump")
-              ? `/driver/job/${seg.id}`
-              : null;
+          // Build the href for tappable segments — any non-completed job segment is tappable
+          const isTappable = !isCompleted && (seg.type === "drop" || seg.type === "pickup" || seg.type === "dump");
+          const href = isTappable ? `/driver/job/${seg.job_id || seg.id}` : null;
 
           return (
             <div
