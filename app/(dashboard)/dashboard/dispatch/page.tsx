@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import DispatchMap from "@/components/dispatch/DispatchMap";
 import { haversineDistance, totalRouteMiles, estimateDriveTime } from "@/lib/geo";
+import { buildRouteSegments } from "@/lib/build-route-segments";
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Constants & Types
@@ -369,8 +370,7 @@ export default function DispatchPage() {
       setFullSegments([]);
       return;
     }
-    // Dynamic import to avoid SSR issues
-    import("@/lib/build-route-segments").then(({ buildRouteSegments }) => {
+    try {
       const routeJobs = truckJobs.map((j) => ({
         id: j.id,
         customer_name: j.customer_name,
@@ -393,7 +393,10 @@ export default function DispatchPage() {
       }));
       const { segments } = buildRouteSegments(routeJobs, dumps, { insertLunch: true });
       setFullSegments(segments);
-    });
+    } catch (e) {
+      console.error("Segment build error:", e);
+      setFullSegments([]);
+    }
   }, [truckJobs, transferStations]);
 
   // Auto-select first truck
