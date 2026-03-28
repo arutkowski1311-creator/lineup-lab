@@ -40,8 +40,13 @@ export async function POST(
     newStatus = parsed.data.status;
   } else if (body.action) {
     // Map driver actions to job statuses
+    // Map driver actions to the correct next status based on current state
+    const arrivedStatus = ["pickup_requested", "pickup_scheduled", "en_route_pickup"].includes(currentStatus)
+      ? "en_route_pickup"
+      : "en_route_drop";
+
     const actionMap: Record<string, string> = {
-      arrived: currentStatus === "pickup_scheduled" ? "en_route_pickup" : "en_route_drop",
+      arrived: arrivedStatus,
       dropped: "dropped",
       picked_up: "picked_up",
       dump_arrived: currentStatus, // no job status change for dump
