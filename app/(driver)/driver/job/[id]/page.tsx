@@ -1011,12 +1011,9 @@ export default function DriverJobPage() {
           </button>
         )}
 
-        {/* Pull from service — always visible during active phases */}
-        {phase !== "complete" &&
-          phase !== "loading" &&
-          phase !== "grading" &&
-          phase !== "audible_check" &&
-          (segment.type === "drop" || segment.type === "pickup") && (
+        {/* Pull from service — only during pickup at_customer phase */}
+        {segment.type === "pickup" && phase === "at_customer" && (
+          <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
             <button
               onClick={() => setPullStep(1)}
               className="w-full py-3 border-2 border-red-200 text-red-600 rounded-2xl text-sm font-semibold active:bg-red-50"
@@ -1024,11 +1021,6 @@ export default function DriverJobPage() {
               <AlertTriangle className="w-4 h-4 inline mr-2" />
               Pull From Service
             </button>
-          )}
-
-        {/* Audible button — always visible during pickup phases */}
-        {segment.type === "pickup" &&
-          phase === "at_customer" && (
             <button
               onClick={() => setShowAudible(true)}
               className="w-full py-3 border-2 border-orange-200 text-orange-600 rounded-2xl text-sm font-semibold active:bg-orange-50"
@@ -1036,7 +1028,8 @@ export default function DriverJobPage() {
               <RotateCcw className="w-4 h-4 inline mr-2" />
               Box Can&apos;t Be Reused
             </button>
-          )}
+          </div>
+        )}
       </div>
     </div>
   );
