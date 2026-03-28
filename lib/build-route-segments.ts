@@ -96,6 +96,10 @@ function getDumpsterSize(job: RouteJob): string | null {
 }
 
 function estimateDrive(fromLat: number, fromLng: number, toLat: number, toLng: number): { miles: number; minutes: number } {
+  // Guard against null/NaN coordinates
+  if (!fromLat || !fromLng || !toLat || !toLng || isNaN(fromLat) || isNaN(toLat)) {
+    return { miles: 5, minutes: 10 }; // default fallback
+  }
   const miles = haversineDistance(fromLat, fromLng, toLat, toLng);
   // Add 30% for road vs straight-line
   const roadMiles = miles * 1.3;
@@ -104,10 +108,12 @@ function estimateDrive(fromLat: number, fromLng: number, toLat: number, toLng: n
 }
 
 function findNearestDump(lat: number, lng: number, dumps: DumpStation[]): DumpStation {
-  if (dumps.length === 0) return DEFAULT_DUMP;
-  let nearest = dumps[0];
+  // Filter to dumps that have valid coordinates
+  const validDumps = dumps.filter(d => d.lat != null && d.lng != null && !isNaN(d.lat) && !isNaN(d.lng));
+  if (validDumps.length === 0) return DEFAULT_DUMP;
+  let nearest = validDumps[0];
   let nearestDist = haversineDistance(lat, lng, nearest.lat, nearest.lng);
-  for (const d of dumps.slice(1)) {
+  for (const d of validDumps.slice(1)) {
     const dist = haversineDistance(lat, lng, d.lat, d.lng);
     if (dist < nearestDist) {
       nearest = d;
