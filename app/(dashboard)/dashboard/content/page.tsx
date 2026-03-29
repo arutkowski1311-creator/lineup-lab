@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Sparkles,
   Copy,
@@ -13,7 +13,7 @@ import {
   Shield,
   TrendingUp,
   Eye,
-  Image,
+  Image as ImageIcon,
   Video,
   Hash,
   AlertTriangle,
@@ -22,6 +22,9 @@ import {
   BarChart3,
   BookOpen,
   Megaphone,
+  Download,
+  Palette,
+  Type,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -98,7 +101,36 @@ const CATEGORY_COLORS: Record<ContentCategory, string> = {
 
 // ─── Step type ───
 
-type Step = "ideas" | "customize" | "output";
+type Step = "ideas" | "customize" | "output" | "create";
+
+// ─── Platform sizes for canvas ───
+
+const PLATFORM_SIZES: Record<string, { width: number; height: number; label: string }> = {
+  instagram: { width: 1080, height: 1080, label: "1080x1080" },
+  facebook: { width: 1200, height: 630, label: "1200x630" },
+  google_ads: { width: 1200, height: 628, label: "1200x628" },
+  email: { width: 600, height: 400, label: "600x400" },
+  sms: { width: 1080, height: 1080, label: "1080x1080" },
+};
+
+interface StockPhoto {
+  id: number;
+  src: {
+    original: string;
+    large2x: string;
+    large: string;
+    medium: string;
+    small: string;
+    portrait: string;
+    landscape: string;
+    tiny: string;
+  };
+  alt: string;
+  photographer: string;
+  width: number;
+  height: number;
+  query: string;
+}
 
 // ─── Component ───
 
@@ -124,6 +156,17 @@ export default function ContentPage() {
   const [generatedContent, setGeneratedContent] = useState<GeneratedContent | null>(null);
   const [generating, setGenerating] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  // Step 4: Create Asset
+  const [photos, setPhotos] = useState<StockPhoto[]>([]);
+  const [photosLoading, setPhotosLoading] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<StockPhoto | null>(null);
+  const [overlayText, setOverlayText] = useState("");
+  const [overlaySubtext, setOverlaySubtext] = useState("");
+  const [overlayPosition, setOverlayPosition] = useState<"center" | "bottom" | "top">("center");
+  const [overlayDarkness, setOverlayDarkness] = useState(50);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [canvasReady, setCanvasReady] = useState(false);
 
   // ─── Load ideas on mount ───
 
@@ -206,6 +249,169 @@ export default function ContentPage() {
     setTimeout(() => setCopiedField(null), 2000);
   }
 
+  // ─── Load photos from Pexels ───
+
+  async function loadPhotos() {
+    if (!generatedContent || !("visual_options" in generatedContent)) return;
+    const visuals = generatedContent.visual_options || [];
+    const queries = visuals.flatMap((v: VisualOption) => v.search_terms).slice(0, 3);
+    if (queries.length === 0) return;
+
+    setPhotosLoading(true);
+    try {
+      const orientation = platform === "instagram" || platform === "sms" ? "square" : "landscape";
+      const res = await fetch("/api/content/photos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ queries, orientation }),
+      });
+      if (!res.ok) throw new Error("Failed to load photos");
+      const data = await res.json();
+      setPhotos(data.photos || []);
+    } catch (err) {
+      toast.error("Failed to load stock photos");
+    } finally {
+      setPhotosLoading(false);
+    }
+  }
+
+  // ─── Render canvas with photo + text overlay ───
+
+  function renderCanvas() {
+    const canvas = canvasRef.current;
+    if (!canvas || !selectedPhoto) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const size = PLATFORM_SIZES[platform] || PLATFORM_SIZES.instagram;
+    canvas.width = size.width;
+    canvas.height = size.height;
+
+    const img = new window.Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      // Draw image covering canvas (cover fit)
+      const imgRatio = img.width / img.height;
+      const canvasRatio = size.width / size.height;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (imgRatio > canvasRatio) {
+        sw = img.height * canvasRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / canvasRatio;
+        sy = (img.height - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size.width, size.height);
+
+      // Dark overlay
+      ctx.fillStyle = `rgba(0, 0, 0, ${overlayDarkness / 100})`;
+      ctx.fillRect(0, 0, size.width, size.height);
+
+      // Text positioning
+      const padding = size.width * 0.08;
+      let textY: number;
+      if (overlayPosition === "top") {
+        textY = size.height * 0.25;
+      } else if (overlayBottom()) {
+        textY = size.height * 0.7;
+      } else {
+        textY = size.height * 0.45;
+      }
+
+      // Main text
+      if (overlayText) {
+        const fontSize = Math.min(size.width * 0.07, 72);
+        ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
+        ctx.fillStyle = "#ffffff";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "rgba(0,0,0,0.5)";
+        ctx.shadowBlur = 8;
+
+        // Word wrap
+        const words = overlayText.split(" ");
+        const lines: string[] = [];
+        let currentLine = "";
+        const maxWidth = size.width - padding * 2;
+        for (const word of words) {
+          const test = currentLine ? `${currentLine} ${word}` : word;
+          if (ctx.measureText(test).width > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = test;
+          }
+        }
+        if (currentLine) lines.push(currentLine);
+
+        const lineHeight = fontSize * 1.3;
+        const totalTextHeight = lines.length * lineHeight;
+        let lineY = textY - totalTextHeight / 2 + fontSize;
+
+        for (const line of lines) {
+          ctx.fillText(line, size.width / 2, lineY);
+          lineY += lineHeight;
+        }
+
+        // Subtext
+        if (overlaySubtext) {
+          const subFontSize = fontSize * 0.5;
+          ctx.font = `${subFontSize}px system-ui, -apple-system, sans-serif`;
+          ctx.fillStyle = "rgba(255,255,255,0.9)";
+          ctx.fillText(overlaySubtext, size.width / 2, lineY + subFontSize * 0.5);
+        }
+      }
+
+      ctx.shadowColor = "transparent";
+      ctx.shadowBlur = 0;
+      setCanvasReady(true);
+    };
+    img.src = selectedPhoto.src.large2x || selectedPhoto.src.large;
+  }
+
+  function overlayBottom(): boolean {
+    return overlayPosition === "bottom";
+  }
+
+  // Re-render canvas when settings change
+  useEffect(() => {
+    if (selectedPhoto && step === "create") {
+      setCanvasReady(false);
+      renderCanvas();
+    }
+  }, [selectedPhoto, overlayText, overlaySubtext, overlayPosition, overlayDarkness, step]);
+
+  // ─── Download canvas as image ───
+
+  function downloadAsset() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const link = document.createElement("a");
+    link.download = `content-${platform}-${Date.now()}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+    toast.success("Image downloaded!");
+  }
+
+  // ─── Enter create step ───
+
+  function enterCreateStep() {
+    // Pre-fill overlay text from generated content
+    if (generatedContent) {
+      if ("hook" in generatedContent && generatedContent.hook) {
+        setOverlayText(generatedContent.hook);
+      } else if ("primary_caption" in generatedContent) {
+        const caption = (generatedContent as SocialContentOutput).primary_caption;
+        setOverlayText(caption.split(".")[0] || "");
+      }
+      if ("cta" in generatedContent && generatedContent.cta) {
+        setOverlaySubtext(generatedContent.cta);
+      }
+    }
+    setStep("create");
+    loadPhotos();
+  }
+
   // ─── Sensitivity badge ───
 
   function SensitivityBadge({ score, level }: { score: number; level: string }) {
@@ -230,6 +436,7 @@ export default function ContentPage() {
       { key: "ideas", label: "Signal Ideas", num: 1 },
       { key: "customize", label: "Customize", num: 2 },
       { key: "output", label: "Content", num: 3 },
+      { key: "create", label: "Create", num: 4 },
     ];
     return (
       <div className="flex items-center gap-2 mb-6">
@@ -240,6 +447,7 @@ export default function ContentPage() {
                 if (s.key === "ideas") setStep("ideas");
                 else if (s.key === "customize" && selectedIdea) setStep("customize");
                 else if (s.key === "output" && generatedContent) setStep("output");
+                else if (s.key === "create" && generatedContent) enterCreateStep();
               }}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
                 step === s.key
@@ -323,7 +531,7 @@ export default function ContentPage() {
     return (
       <div className="bg-tippd-ink rounded-lg p-4 border border-white/5 space-y-2">
         <div className="flex items-center gap-2 text-xs text-tippd-smoke">
-          {visual.type === "image" ? <Image className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
+          {visual.type === "image" ? <ImageIcon className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
           <span className="font-medium">Visual {index + 1}</span>
           <span className="text-tippd-ash">• {visual.type} • {visual.aspect_ratio}</span>
         </div>
@@ -689,6 +897,13 @@ export default function ContentPage() {
               <RefreshCw className={`w-3.5 h-3.5 ${generating ? "animate-spin" : ""}`} />
               Regenerate
             </button>
+            <button
+              onClick={enterCreateStep}
+              className="flex items-center gap-2 px-4 py-1.5 rounded bg-tippd-green text-white text-xs font-semibold hover:opacity-90"
+            >
+              <Palette className="w-3.5 h-3.5" />
+              Create Asset
+            </button>
           </div>
         </div>
 
@@ -701,7 +916,7 @@ export default function ContentPage() {
           {/* Visual sidebar - 1 col */}
           <div className="space-y-4">
             <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider flex items-center gap-2">
-              <Image className="w-3.5 h-3.5" />
+              <ImageIcon className="w-3.5 h-3.5" />
               Visual Suggestions
             </h3>
             {visuals.length > 0 ? (
@@ -910,6 +1125,225 @@ export default function ContentPage() {
     );
   }
 
+  // ─── STEP 4: Create Asset ───
+
+  function renderCreate() {
+    const size = PLATFORM_SIZES[platform] || PLATFORM_SIZES.instagram;
+    const previewRatio = size.width / size.height;
+
+    return (
+      <div className="space-y-6">
+        {/* Back */}
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => setStep("output")}
+            className="flex items-center gap-1 text-sm text-tippd-smoke hover:text-white"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back to Content
+          </button>
+          <span className="text-xs text-tippd-ash">
+            {platform} • {size.label}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Canvas preview - 2 cols */}
+          <div className="lg:col-span-2 space-y-4">
+            <div className="rounded-lg border border-white/10 bg-tippd-charcoal p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider flex items-center gap-2">
+                  <Palette className="w-3.5 h-3.5" />
+                  Preview
+                </h3>
+                {canvasReady && (
+                  <button
+                    onClick={downloadAsset}
+                    className="flex items-center gap-2 px-4 py-2 rounded bg-tippd-green text-white text-sm font-semibold hover:opacity-90"
+                  >
+                    <Download className="w-4 h-4" />
+                    Download Image
+                  </button>
+                )}
+              </div>
+
+              {selectedPhoto ? (
+                <div style={{ aspectRatio: previewRatio, maxHeight: "500px" }} className="relative mx-auto">
+                  <canvas
+                    ref={canvasRef}
+                    className="w-full h-full rounded-lg object-contain"
+                    style={{ aspectRatio: previewRatio }}
+                  />
+                </div>
+              ) : (
+                <div
+                  className="flex items-center justify-center rounded-lg bg-tippd-ink border border-white/5"
+                  style={{ aspectRatio: previewRatio, maxHeight: "400px" }}
+                >
+                  <p className="text-sm text-tippd-ash">Select a photo below to preview your asset</p>
+                </div>
+              )}
+            </div>
+
+            {/* Photo grid */}
+            <div className="rounded-lg border border-white/10 bg-tippd-charcoal p-4">
+              <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider mb-3 flex items-center gap-2">
+                <ImageIcon className="w-3.5 h-3.5" />
+                Choose a Photo
+                {photosLoading && <RefreshCw className="w-3 h-3 animate-spin ml-1" />}
+              </h3>
+
+              {photos.length > 0 ? (
+                <div className="grid grid-cols-3 gap-2">
+                  {photos.map((photo) => (
+                    <button
+                      key={photo.id}
+                      onClick={() => setSelectedPhoto(photo)}
+                      className={`relative rounded-lg overflow-hidden border-2 transition-all ${
+                        selectedPhoto?.id === photo.id
+                          ? "border-tippd-green ring-2 ring-tippd-green/30"
+                          : "border-transparent hover:border-white/20"
+                      }`}
+                    >
+                      <img
+                        src={photo.src.medium}
+                        alt={photo.alt}
+                        className="w-full aspect-square object-cover"
+                        crossOrigin="anonymous"
+                      />
+                      {selectedPhoto?.id === photo.id && (
+                        <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-tippd-green flex items-center justify-center">
+                          <Check className="w-3 h-3 text-white" />
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-1.5">
+                        <p className="text-[9px] text-white/70 truncate">{photo.photographer}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : photosLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-5 h-5 animate-spin text-tippd-smoke" />
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-xs text-tippd-ash mb-2">No photos found</p>
+                  <button
+                    onClick={loadPhotos}
+                    className="px-3 py-1.5 bg-tippd-steel text-tippd-smoke rounded text-xs hover:text-white"
+                  >
+                    Retry
+                  </button>
+                </div>
+              )}
+              <p className="text-[9px] text-tippd-ash mt-2">Photos provided by Pexels</p>
+            </div>
+          </div>
+
+          {/* Controls sidebar - 1 col */}
+          <div className="space-y-4">
+            {/* Text controls */}
+            <div className="rounded-lg border border-white/10 bg-tippd-charcoal p-4 space-y-4">
+              <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider flex items-center gap-2">
+                <Type className="w-3.5 h-3.5" />
+                Text Overlay
+              </h3>
+
+              <div>
+                <label className="block text-xs text-tippd-smoke mb-1">Headline</label>
+                <textarea
+                  value={overlayText}
+                  onChange={(e) => setOverlayText(e.target.value)}
+                  placeholder="Main headline text..."
+                  className="w-full bg-tippd-ink border border-white/10 rounded-md p-2.5 text-sm text-white placeholder:text-tippd-ash resize-none focus:outline-none focus:border-tippd-blue/50"
+                  rows={2}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-tippd-smoke mb-1">Subtext / CTA</label>
+                <input
+                  type="text"
+                  value={overlaySubtext}
+                  onChange={(e) => setOverlaySubtext(e.target.value)}
+                  placeholder="Call to action..."
+                  className="w-full bg-tippd-ink border border-white/10 rounded-md p-2.5 text-sm text-white placeholder:text-tippd-ash focus:outline-none focus:border-tippd-blue/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs text-tippd-smoke mb-1">Text Position</label>
+                <div className="flex gap-2">
+                  {(["top", "center", "bottom"] as const).map((pos) => (
+                    <button
+                      key={pos}
+                      onClick={() => setOverlayPosition(pos)}
+                      className={`flex-1 py-1.5 rounded text-xs font-medium transition-colors ${
+                        overlayPosition === pos
+                          ? "bg-tippd-blue text-white"
+                          : "bg-tippd-steel text-tippd-smoke hover:text-white"
+                      }`}
+                    >
+                      {pos.charAt(0).toUpperCase() + pos.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-tippd-smoke mb-1">
+                  Darken: {overlayDarkness}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="80"
+                  value={overlayDarkness}
+                  onChange={(e) => setOverlayDarkness(Number(e.target.value))}
+                  className="w-full accent-tippd-blue"
+                />
+              </div>
+            </div>
+
+            {/* Quick text presets from generated content */}
+            {generatedContent && "overlay_text_options" in generatedContent && (generatedContent as SocialContentOutput).overlay_text_options?.length > 0 && (
+              <div className="rounded-lg border border-white/10 bg-tippd-charcoal p-4 space-y-2">
+                <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider">
+                  Suggested Headlines
+                </h3>
+                {(generatedContent as SocialContentOutput).overlay_text_options.map((text, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setOverlayText(text)}
+                    className={`w-full text-left px-3 py-2 rounded text-xs transition-colors ${
+                      overlayText === text
+                        ? "bg-tippd-blue/20 text-tippd-blue border border-tippd-blue/30"
+                        : "bg-tippd-ink text-white hover:bg-tippd-steel border border-white/5"
+                    }`}
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Download button (repeated for sidebar) */}
+            {canvasReady && selectedPhoto && (
+              <button
+                onClick={downloadAsset}
+                className="w-full py-3 bg-tippd-green text-white rounded-md text-sm font-semibold hover:opacity-90 flex items-center justify-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download Ready-to-Post Image
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ─── Main Render ───
 
   return (
@@ -927,6 +1361,7 @@ export default function ContentPage() {
       {step === "ideas" && renderIdeas()}
       {step === "customize" && renderCustomize()}
       {step === "output" && renderOutput()}
+      {step === "create" && renderCreate()}
     </div>
   );
 }
