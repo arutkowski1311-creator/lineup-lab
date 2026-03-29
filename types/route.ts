@@ -15,5 +15,17 @@ export interface Route {
   end_time: string | null;
   revenue_generated: number | null;
   miles_per_box: number | null;
+  dead_mile_breakdown: DeadMileBreakdown | null;
+  dead_mile_pct: number | null;
   created_at: string;
+}
+
+export interface DeadMileBreakdown {
+  revenue_delivery?: number;
+  revenue_pickup?: number;
+  transfer?: number;
+  yard_reposition?: number;
+  empty_retrieval?: number;
+  return_to_yard?: number;
+  detour?: number;
 }

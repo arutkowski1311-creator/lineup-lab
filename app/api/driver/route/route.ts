@@ -64,12 +64,12 @@ export async function GET(request: Request) {
   const url = new URL(request.url);
   const truckId = url.searchParams.get("truck_id");
 
-  // Only show jobs that need a driver action today:
-  // scheduled = needs to be dropped off
-  // en_route_drop = currently heading to drop
-  // pickup_scheduled = needs to be picked up
-  // en_route_pickup = currently heading to pickup
-  const ACTIONABLE_STATUSES = ["scheduled", "en_route_drop", "pickup_scheduled", "en_route_pickup"];
+  // Show jobs that are part of today's route:
+  // scheduled / en_route_drop = drop jobs
+  // pickup_scheduled / en_route_pickup = pickup jobs
+  // dropped = just dropped, still on today's route
+  // picked_up = just picked up, needs dump visit still
+  const ACTIONABLE_STATUSES = ["scheduled", "en_route_drop", "dropped", "pickup_scheduled", "en_route_pickup", "picked_up"];
 
   let jobs: any[] = [];
 

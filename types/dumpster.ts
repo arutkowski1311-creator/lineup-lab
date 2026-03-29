@@ -4,6 +4,10 @@ export const DUMPSTER_STATUSES = [
   "deployed",
   "returning",
   "in_yard",
+  "needs_cleaning",
+  "needs_repair",
+  "picked_up_full",
+  "at_transfer",
   "repair",
   "retired",
 ] as const;
@@ -38,5 +42,21 @@ export interface DumpsterConditionLog {
   new_grade: ConditionGrade;
   changed_by: string;
   notes: string | null;
+  created_at: string;
+}
+
+export interface DumpsterInspection {
+  id: string;
+  dumpster_id: string;
+  operator_id: string;
+  inspected_by: string;
+  inspection_date: string;
+  appearance_score: number; // 1-10
+  structural_score: number; // 1-10
+  cleanliness_score: number; // 1-10
+  overall_grade: ConditionGrade;
+  notes: string | null;
+  photos: string[];
+  repair_items: { item: string; estimated_cost: number; priority: string }[];
   created_at: string;
 }

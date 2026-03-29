@@ -37,5 +37,14 @@ export interface Operator {
   truck_maintenance_reserve: number | null;
   driver_monthly_wage: number | null;
   truck_amortization_months: number | null;
+  // Dispatch & exception config
+  workday_cap_hours: number;
+  service_time_drop_minutes: number;
+  service_time_pickup_minutes: number;
+  service_time_dump_minutes: number;
+  exception_auto_notify_customer: boolean;
+  breakdown_redistribution_auto_propose: boolean;
+  dump_alternate_radius_miles: number;
+  prohibited_materials_list: string[];
   created_at: string;
 }

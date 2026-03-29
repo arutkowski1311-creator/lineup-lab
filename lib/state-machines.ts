@@ -131,9 +131,13 @@ export function validateQuoteTransition(
 const DUMPSTER_TRANSITIONS: Record<DumpsterStatus, DumpsterStatus[]> = {
   available: ["assigned"],
   assigned: ["deployed", "available"], // available if job cancelled
-  deployed: ["returning"],
+  deployed: ["picked_up_full", "returning"],
+  picked_up_full: ["at_transfer"], // in transit from customer to dump
+  at_transfer: ["returning"], // at dump facility being offloaded
   returning: ["in_yard"],
-  in_yard: ["available", "repair"],
+  in_yard: ["available", "needs_cleaning", "needs_repair", "repair"],
+  needs_cleaning: ["available", "in_yard"], // cleaned → available, or needs further work
+  needs_repair: ["repair", "available"], // sent to repair or fixed quickly
   repair: ["available", "retired"],
   retired: [],
 };

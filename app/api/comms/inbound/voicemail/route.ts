@@ -1,5 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { json, error } from "@/lib/api-helpers";
+import { transcribeVoicemail } from "@/lib/whisper";
 
 // Twilio webhook — receives voicemail recording
 export async function POST(request: Request) {
@@ -28,7 +29,14 @@ export async function POST(request: Request) {
     .eq("phone", from)
     .single();
 
-  // TODO: Transcribe with Whisper, classify intent
+  // Transcribe voicemail with Whisper (falls back to placeholder if not configured)
+  let transcript = "[Voicemail — transcription unavailable]";
+  try {
+    transcript = await transcribeVoicemail(recordingUrl);
+  } catch {
+    // Whisper not configured or audio fetch failed — store without transcript
+  }
+
   const { data, error: dbError } = await admin
     .from("communications")
     .insert({
@@ -38,7 +46,7 @@ export async function POST(request: Request) {
       channel: "voicemail",
       from_number: from,
       to_number: to,
-      raw_content: "[Voicemail — awaiting transcription]",
+      raw_content: transcript,
       voicemail_url: recordingUrl,
       twilio_sid: sid,
     })

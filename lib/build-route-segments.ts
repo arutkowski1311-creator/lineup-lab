@@ -81,9 +81,14 @@ export interface RouteSegment {
 }
 
 function getJobType(job: RouteJob): "drop" | "pickup" {
-  return ["pickup_requested", "pickup_scheduled", "en_route_pickup", "dropped", "active"].includes(job.status)
+  return ["pickup_requested", "pickup_scheduled", "en_route_pickup", "picked_up"].includes(job.status)
     ? "pickup"
     : "drop";
+}
+
+function isJobCompleted(job: RouteJob): boolean {
+  // These statuses mean the driver already did their part
+  return ["dropped", "picked_up"].includes(job.status);
 }
 
 function getDumpsterSize(job: RouteJob): string | null {
@@ -165,6 +170,7 @@ export function buildRouteSegments(
   for (let i = 0; i < orderedJobs.length; i++) {
     const job = orderedJobs[i];
     const jobType = getJobType(job);
+    const completed = isJobCompleted(job);
     const jobLat = job.drop_lat || YARD.lat;
     const jobLng = job.drop_lng || YARD.lng;
     const boxSize = getDumpsterSize(job);
@@ -209,7 +215,7 @@ export function buildRouteSegments(
             planned_stop_minutes: 10, // load box
             planned_total_minutes: drive.minutes + 10,
             planned_drive_miles: drive.miles,
-            status: "pending",
+            status: completed ? "completed" : "pending",
           });
           totalMiles += drive.miles;
           totalMinutes += drive.minutes + 10;
@@ -230,7 +236,7 @@ export function buildRouteSegments(
             planned_stop_minutes: 0,
             planned_total_minutes: 0,
             planned_drive_miles: 0,
-            status: "pending",
+            status: completed ? "completed" : "pending",
           });
         }
         hasBoxOnTruck = true;
@@ -258,7 +264,7 @@ export function buildRouteSegments(
         planned_stop_minutes: DROP_MINUTES,
         planned_total_minutes: drive.minutes + DROP_MINUTES,
         planned_drive_miles: drive.miles,
-        status: "pending",
+        status: completed ? "completed" : "pending",
       });
       totalMiles += drive.miles;
       totalMinutes += drive.minutes + DROP_MINUTES;
@@ -293,7 +299,7 @@ export function buildRouteSegments(
         planned_stop_minutes: PICKUP_MINUTES,
         planned_total_minutes: drive.minutes + PICKUP_MINUTES,
         planned_drive_miles: drive.miles,
-        status: "pending",
+        status: completed ? "completed" : "pending",
       });
       totalMiles += drive.miles;
       totalMinutes += drive.minutes + PICKUP_MINUTES;

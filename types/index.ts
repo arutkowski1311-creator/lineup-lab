@@ -12,3 +12,4 @@ export * from "./expense";
 export * from "./dispatch";
 export * from "./insights";
 export * from "./content";
+export * from "./exception";
