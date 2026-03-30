@@ -19,6 +19,7 @@ import {
   Box,
   CalendarCheck,
   Bell,
+  AlertTriangle,
   X,
 } from "lucide-react";
 
@@ -34,6 +35,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Action Center", href: "/dashboard/actions", icon: Bell },
   { label: "Dispatch", href: "/dashboard/dispatch", icon: MapPin },
   { label: "Jobs", href: "/dashboard/jobs", icon: CalendarCheck },
+  { label: "Exceptions", href: "/dashboard/exceptions", icon: AlertTriangle },
   { label: "Customers", href: "/dashboard/customers", icon: Users },
   { label: "Boxes", href: "/dashboard/fleet", icon: Box },
   { label: "Trucks", href: "/dashboard/trucks", icon: Truck },
@@ -42,6 +44,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Invoices", href: "/dashboard/invoices", icon: Receipt },
   { label: "Expenses", href: "/dashboard/expenses", icon: DollarSign },
   { label: "Reports", href: "/dashboard/reports", icon: BarChart3 },
+  { label: "Insights", href: "/dashboard/insights", icon: Sparkles },
   { label: "Content", href: "/dashboard/content", icon: Sparkles },
   { label: "Driver Mode", href: "/driver", icon: Route },
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
