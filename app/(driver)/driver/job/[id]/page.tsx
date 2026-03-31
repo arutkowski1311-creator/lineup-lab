@@ -16,6 +16,7 @@ import {
   ChevronRight,
   RotateCcw,
   Box,
+  Flag,
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
@@ -116,6 +117,13 @@ export default function DriverJobPage() {
 
   // Grade warnings
   const [gradeWarning, setGradeWarning] = useState<string | null>(null);
+
+  // Exception flag state
+  const [showFlagModal, setShowFlagModal] = useState(false);
+  const [flagType, setFlagType] = useState("");
+  const [flagNote, setFlagNote] = useState("");
+  const [flagSubmitting, setFlagSubmitting] = useState(false);
+  const [flagSuccess, setFlagSuccess] = useState(false);
 
   const gpsRef = useRef<number | null>(null);
   const lastGpsUpdate = useRef<number>(0);
@@ -457,10 +465,8 @@ export default function DriverJobPage() {
   function goToNextSegment() {
     if (segment?.next_segment) {
       const next = segment.next_segment;
-      if ((next.type === "drop" || next.type === "pickup") && next.job_id) {
-        router.push(`/driver/job/${next.job_id}`);
-      } else if (next.type === "dump") {
-        // Navigate to dump segment page
+      if (next.type === "drop" || next.type === "pickup" || next.type === "dump") {
+        // Always use segment ID (not job_id) for consistent routing
         router.push(`/driver/job/${next.id}`);
       } else {
         // For yard, lunch segments — go back to route list to tap through
@@ -468,6 +474,60 @@ export default function DriverJobPage() {
       }
     } else {
       router.push("/driver");
+    }
+  }
+
+  // ─── Exception flag handler ───
+
+  const EXCEPTION_TYPES: Array<{ key: string; label: string; emoji: string }> = [
+    { key: "box_inaccessible", label: "Box Inaccessible", emoji: "🚧" },
+    { key: "customer_not_present", label: "Customer Not Present", emoji: "🚪" },
+    { key: "prohibited_material", label: "Prohibited Material", emoji: "☣️" },
+    { key: "wrong_address", label: "Wrong Address", emoji: "📍" },
+    { key: "site_blocked", label: "Site Blocked", emoji: "⛔" },
+    { key: "truck_problem", label: "Truck Problem", emoji: "🔧" },
+    { key: "damage_at_site", label: "Damage at Site", emoji: "💥" },
+    { key: "other", label: "Other", emoji: "❗" },
+  ];
+
+  async function handleFlagSubmit() {
+    if (!flagType) return;
+    setFlagSubmitting(true);
+    try {
+      const exType = EXCEPTION_TYPES.find(e => e.key === flagType);
+      const title = exType
+        ? `${exType.emoji} ${exType.label}${segment?.customer_name ? ` — ${segment.customer_name}` : ""}`
+        : `Driver flag${segment?.customer_name ? ` — ${segment.customer_name}` : ""}`;
+
+      const description = [
+        segment?.to_address ? `Address: ${segment.to_address}` : null,
+        flagNote.trim() ? flagNote.trim() : null,
+      ].filter(Boolean).join("\n");
+
+      await fetch("/api/driver/flag", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          exception_type: flagType,
+          title,
+          description: description || undefined,
+          job_id: segment?.job_id || undefined,
+          segment_id: segment?.id || undefined,
+        }),
+      });
+
+      setFlagSuccess(true);
+      setFlagType("");
+      setFlagNote("");
+      // Auto-close after brief success display
+      setTimeout(() => {
+        setShowFlagModal(false);
+        setFlagSuccess(false);
+      }, 2000);
+    } catch {
+      // Non-fatal
+    } finally {
+      setFlagSubmitting(false);
     }
   }
 
@@ -569,6 +629,17 @@ export default function DriverJobPage() {
           </p>
         ) : null}
       </div>
+
+      {/* Report Problem — always visible on active stops */}
+      {phase !== "complete" && phase !== "loading" && (
+        <button
+          onClick={() => setShowFlagModal(true)}
+          className="w-full mb-4 py-3 border-2 border-orange-300 bg-orange-50 text-orange-700 rounded-2xl text-sm font-bold active:bg-orange-100 flex items-center justify-center gap-2"
+        >
+          <Flag className="w-4 h-4" />
+          Report Problem
+        </button>
+      )}
 
       {/* Quick info cards */}
       <div className="grid grid-cols-2 gap-3 mb-5">
@@ -902,6 +973,91 @@ export default function DriverJobPage() {
         </div>
       )}
 
+      {/* ────── EXCEPTION FLAG MODAL ────── */}
+
+      {showFlagModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end justify-center p-3">
+          <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-orange-100 flex items-center justify-center">
+                  <Flag className="w-4 h-4 text-orange-600" />
+                </div>
+                <h2 className="text-base font-bold text-gray-900">Report a Problem</h2>
+              </div>
+              <button
+                onClick={() => { setShowFlagModal(false); setFlagType(""); setFlagNote(""); setFlagSuccess(false); }}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 active:bg-gray-200"
+              >
+                <X className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
+
+            {flagSuccess ? (
+              <div className="px-5 pb-6 pt-2 text-center">
+                <div className="w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center mx-auto mb-3">
+                  <Check className="w-8 h-8 text-emerald-600" />
+                </div>
+                <p className="text-base font-bold text-gray-900 mb-1">Reported!</p>
+                <p className="text-sm text-gray-500">Your dispatcher has been notified.</p>
+              </div>
+            ) : (
+              <div className="px-4 pb-5">
+                {/* Exception type grid */}
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 px-1">
+                  What&apos;s the issue?
+                </p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {EXCEPTION_TYPES.map((ex) => (
+                    <button
+                      key={ex.key}
+                      onClick={() => setFlagType(ex.key)}
+                      className={cn(
+                        "py-3 px-3 rounded-xl border-2 text-left transition-all active:scale-95",
+                        flagType === ex.key
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-gray-200 bg-white active:bg-gray-50"
+                      )}
+                    >
+                      <span className="text-xl block mb-0.5">{ex.emoji}</span>
+                      <span className={cn(
+                        "text-xs font-semibold leading-tight",
+                        flagType === ex.key ? "text-orange-700" : "text-gray-700"
+                      )}>
+                        {ex.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* Notes field */}
+                <textarea
+                  value={flagNote}
+                  onChange={(e) => setFlagNote(e.target.value)}
+                  placeholder="Add details (optional)..."
+                  rows={2}
+                  className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 text-sm resize-none mb-4"
+                />
+
+                {/* Submit */}
+                <button
+                  onClick={handleFlagSubmit}
+                  disabled={!flagType || flagSubmitting}
+                  className="w-full py-4 bg-orange-500 text-white rounded-xl text-base font-bold active:opacity-80 disabled:opacity-40"
+                >
+                  {flagSubmitting ? (
+                    <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                  ) : (
+                    "Send Alert to Dispatcher"
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ────── MAIN ACTION BUTTONS (fixed at bottom) ────── */}
 
       <div className="fixed bottom-20 left-4 right-4 space-y-2 z-20">
@@ -1017,7 +1173,7 @@ export default function DriverJobPage() {
 
         {/* Pull from service — only during pickup at_customer phase */}
         {segment.type === "pickup" && phase === "at_customer" && (
-          <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+          <div className="mt-2 pt-2 border-t border-gray-100 space-y-2">
             <button
               onClick={() => setPullStep(1)}
               className="w-full py-3 border-2 border-red-200 text-red-600 rounded-2xl text-sm font-semibold active:bg-red-50"
@@ -1034,6 +1190,7 @@ export default function DriverJobPage() {
             </button>
           </div>
         )}
+
       </div>
     </div>
   );
