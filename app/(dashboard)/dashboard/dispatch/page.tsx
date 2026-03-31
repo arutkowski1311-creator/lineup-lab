@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
-import DispatchMap from "@/components/dispatch/DispatchMap";
+import DispatchMap, { type TruckLocation } from "@/components/dispatch/DispatchMap";
 import { haversineDistance, totalRouteMiles, estimateDriveTime } from "@/lib/geo";
 import { buildRouteSegments } from "@/lib/build-route-segments";
 
@@ -294,6 +294,31 @@ export default function DispatchPage() {
   // ─── View Mode ───
   const [viewMode, setViewMode] = useState<"jobs" | "segments">("segments");
   const [fullSegments, setFullSegments] = useState<any[]>([]);
+
+  // ─── Live Truck Locations ───
+  const [truckLocations, setTruckLocations] = useState<TruckLocation[]>([]);
+
+  // Poll truck locations every 30s
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLocations = async () => {
+      try {
+        const res = await fetch("/api/dispatch/truck-locations");
+        if (res.ok && !cancelled) {
+          const data = await res.json();
+          setTruckLocations(data.locations || []);
+        }
+      } catch {
+        // silently ignore — truck locations are best-effort
+      }
+    };
+    fetchLocations();
+    const interval = setInterval(fetchLocations, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   // ─── Add Job Modal ───
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1388,6 +1413,7 @@ export default function DispatchPage() {
               jobs={mapJobs}
               transferStations={mapTransferStations}
               routePath={draftRoutePath}
+              truckLocations={truckLocations}
               selectedJobId={selectedJobId}
               onJobClick={(id: string) => setSelectedJobId(selectedJobId === id ? null : id)}
             />
@@ -1759,6 +1785,7 @@ interface MapWrapperProps {
   jobs: any[];
   transferStations: any[];
   routePath?: Array<{ lat: number; lng: number }>;
+  truckLocations?: TruckLocation[];
   selectedJobId?: string | null;
   onJobClick?: (id: string) => void;
 }

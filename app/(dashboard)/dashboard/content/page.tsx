@@ -132,6 +132,17 @@ interface StockPhoto {
   query: string;
 }
 
+// ─── Slide type for multi-slide carousel ───
+
+interface Slide {
+  id: string;
+  photo: StockPhoto | null;
+  text: string;
+  subtext: string;
+  position: "top" | "center" | "bottom";
+  darkness: number;
+}
+
 // ─── Component ───
 
 export default function ContentPage() {
@@ -167,6 +178,23 @@ export default function ContentPage() {
   const [overlayDarkness, setOverlayDarkness] = useState(50);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [selectedVisual, setSelectedVisual] = useState<VisualOption | null>(null);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+
+  const [customSearchTerms, setCustomSearchTerms] = useState<string[]>([]);
+  const [searchTermInput, setSearchTermInput] = useState("");
+
+  // Multi-slide carousel
+  const [slides, setSlides] = useState<Slide[]>([]);
+  const [activeSlideIdx, setActiveSlideIdx] = useState(0);
+  const [downloadingAll, setDownloadingAll] = useState(false);
+
+  // Multiple uploaded photos (replaces single uploadedPhotoUrl)
+  const [uploadedPhotos, setUploadedPhotos] = useState<StockPhoto[]>([]);
+
+  // Operator branding (for logo watermark on canvas)
+  const [operatorLogoUrl, setOperatorLogoUrl] = useState<string | null>(null);
+  const [operatorPrimaryColor, setOperatorPrimaryColor] = useState<string>("#1B3A6B");
 
   // ─── Load ideas on mount ───
 
@@ -196,6 +224,29 @@ export default function ContentPage() {
   useEffect(() => {
     loadIdeas();
   }, [loadIdeas]);
+
+  // ─── Load operator branding for canvas watermark ───
+  useEffect(() => {
+    async function loadOperator() {
+      try {
+        const { createClient } = await import("@/lib/supabase/client");
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: userData } = await supabase
+          .from("users").select("operator_id").eq("id", user.id).single();
+        if (!userData?.operator_id) return;
+        const { data: op } = await supabase
+          .from("operators")
+          .select("logo_url, primary_color")
+          .eq("id", userData.operator_id)
+          .single();
+        if (op?.logo_url) setOperatorLogoUrl(op.logo_url);
+        if (op?.primary_color) setOperatorPrimaryColor(op.primary_color);
+      } catch { /* non-critical */ }
+    }
+    loadOperator();
+  }, []);
 
   // ─── Generate content ───
 
@@ -251,13 +302,33 @@ export default function ContentPage() {
 
   // ─── Load photos from Pexels ───
 
-  async function loadPhotos() {
-    if (!generatedContent || !("visual_options" in generatedContent)) return;
-    const visuals = generatedContent.visual_options || [];
-    const queries = visuals.flatMap((v: VisualOption) => v.search_terms).slice(0, 3);
+  async function loadPhotos(visual?: VisualOption) {
+    const activeVisual = visual ?? selectedVisual;
+
+    // Build context-aware search queries
+    // Priority: 1) custom terms entered by user, 2) selected visual terms, 3) all visuals fallback
+    let queries: string[] = [];
+    if (customSearchTerms.length > 0) {
+      queries = customSearchTerms.slice(0, 3);
+    } else if (activeVisual?.search_terms?.length) {
+      // Use the AI's search terms exactly as generated — the AI prompt now produces specific terms
+      queries = activeVisual.search_terms.slice(0, 3);
+      setCustomSearchTerms(queries);
+    } else if (generatedContent && "visual_options" in generatedContent) {
+      const visuals = (generatedContent.visual_options || []) as VisualOption[];
+      queries = visuals
+        .flatMap((v) => v.search_terms)
+        .slice(0, 3);
+      setCustomSearchTerms(queries);
+    } else {
+      queries = ["roll-off dumpster delivery", "construction cleanup dumpster", "home renovation junk removal"];
+      setCustomSearchTerms(queries);
+    }
+
     if (queries.length === 0) return;
 
     setPhotosLoading(true);
+    setPhotos([]);
     try {
       const orientation = platform === "instagram" || platform === "sms" ? "square" : "landscape";
       const res = await fetch("/api/content/photos", {
@@ -275,12 +346,68 @@ export default function ContentPage() {
     }
   }
 
-  // ─── Render canvas with photo + text overlay ───
+  // ─── Handle own photo upload (multiple) ───
 
-  function renderCanvas() {
-    const canvas = canvasRef.current;
-    if (!canvas || !selectedPhoto) return;
+  function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
 
+    const newPhotos: StockPhoto[] = files.map((file, i) => {
+      const url = URL.createObjectURL(file);
+      return {
+        id: -(Date.now() + i), // negative IDs = uploaded
+        src: { original: url, large2x: url, large: url, medium: url, small: url, portrait: url, landscape: url, tiny: url },
+        alt: file.name,
+        photographer: "Your photo",
+        width: 0,
+        height: 0,
+        query: "upload",
+      };
+    });
+
+    setUploadedPhotos(prev => [...prev, ...newPhotos]);
+    // Auto-select the first uploaded photo
+    setSelectedPhoto(newPhotos[0]);
+    // Reset input so same file can be re-uploaded
+    if (uploadInputRef.current) uploadInputRef.current.value = "";
+  }
+
+  // ─── Canvas helpers ───
+
+  function loadCanvasImage(src: string, useCrossOrigin: boolean): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new window.Image();
+      if (useCrossOrigin) img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  function drawRoundedRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  // ─── Core canvas renderer (accepts explicit params for multi-slide support) ───
+
+  async function renderSlideToCanvas(
+    canvas: HTMLCanvasElement,
+    photo: StockPhoto,
+    text: string,
+    subtext: string,
+    position: "top" | "center" | "bottom",
+    darkness: number
+  ): Promise<void> {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
@@ -288,89 +415,167 @@ export default function ContentPage() {
     canvas.width = size.width;
     canvas.height = size.height;
 
-    const img = new window.Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      // Draw image covering canvas (cover fit)
-      const imgRatio = img.width / img.height;
-      const canvasRatio = size.width / size.height;
-      let sx = 0, sy = 0, sw = img.width, sh = img.height;
-      if (imgRatio > canvasRatio) {
-        sw = img.height * canvasRatio;
-        sx = (img.width - sw) / 2;
-      } else {
-        sh = img.width / canvasRatio;
-        sy = (img.height - sh) / 2;
+    await document.fonts.ready;
+
+    const isBlob = photo.src.medium.startsWith("blob:");
+    let img: HTMLImageElement;
+    try {
+      img = await loadCanvasImage(photo.src.large2x || photo.src.large, !isBlob);
+    } catch {
+      return;
+    }
+
+    // Draw image (cover fit)
+    const imgRatio = img.width / img.height;
+    const canvasRatio = size.width / size.height;
+    let sx = 0, sy = 0, sw = img.width, sh = img.height;
+    if (imgRatio > canvasRatio) {
+      sw = img.height * canvasRatio;
+      sx = (img.width - sw) / 2;
+    } else {
+      sh = img.width / canvasRatio;
+      sy = (img.height - sh) / 2;
+    }
+    ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size.width, size.height);
+
+    // Dark overlay gradient
+    const grad = ctx.createLinearGradient(0, 0, 0, size.height);
+    const alpha = darkness / 100;
+    grad.addColorStop(0, `rgba(0,0,0,${alpha * 0.4})`);
+    grad.addColorStop(0.45, `rgba(0,0,0,${alpha * 0.55})`);
+    grad.addColorStop(1, `rgba(0,0,0,${alpha * 0.9})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, size.width, size.height);
+
+    // ─── Text block ───
+    const padding = size.width * 0.08;
+    const maxWidth = size.width - padding * 2;
+
+    let textY: number;
+    if (position === "top") {
+      textY = size.height * 0.25;
+    } else if (position === "bottom") {
+      textY = size.height * 0.68;
+    } else {
+      textY = size.height * 0.44;
+    }
+
+    if (text) {
+      const fontSize = Math.min(size.width * 0.075, 78);
+      const subFontSize = Math.round(fontSize * 0.42);
+      const lineHeight = fontSize * 1.25;
+
+      ctx.font = `700 ${fontSize}px Inter, system-ui, sans-serif`;
+      const words = text.split(" ");
+      const lines: string[] = [];
+      let cur = "";
+      for (const word of words) {
+        const test = cur ? `${cur} ${word}` : word;
+        if (ctx.measureText(test).width > maxWidth && cur) { lines.push(cur); cur = word; }
+        else { cur = test; }
       }
-      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, size.width, size.height);
+      if (cur) lines.push(cur);
 
-      // Dark overlay
-      ctx.fillStyle = `rgba(0, 0, 0, ${overlayDarkness / 100})`;
-      ctx.fillRect(0, 0, size.width, size.height);
-
-      // Text positioning
-      const padding = size.width * 0.08;
-      let textY: number;
-      if (overlayPosition === "top") {
-        textY = size.height * 0.25;
-      } else if (overlayBottom()) {
-        textY = size.height * 0.7;
-      } else {
-        textY = size.height * 0.45;
+      ctx.font = `400 ${subFontSize}px Inter, system-ui, sans-serif`;
+      const subLines: string[] = [];
+      if (subtext) {
+        let subCur = "";
+        for (const word of subtext.split(" ")) {
+          const test = subCur ? `${subCur} ${word}` : word;
+          if (ctx.measureText(test).width > maxWidth && subCur) { subLines.push(subCur); subCur = word; }
+          else { subCur = test; }
+        }
+        if (subCur) subLines.push(subCur);
       }
 
-      // Main text
-      if (overlayText) {
-        const fontSize = Math.min(size.width * 0.07, 72);
-        ctx.font = `bold ${fontSize}px system-ui, -apple-system, sans-serif`;
-        ctx.fillStyle = "#ffffff";
+      const accentBarH = Math.round(fontSize * 0.08);
+      const accentBarW = Math.round(maxWidth * 0.18);
+      const accentBarGap = Math.round(fontSize * 0.45);
+      const totalTextHeight =
+        accentBarH + accentBarGap +
+        lines.length * lineHeight +
+        (subLines.length > 0 ? subFontSize * 0.9 + subLines.length * subFontSize * 1.4 : 0);
+      const blockTop = textY - totalTextHeight / 2;
+
+      // Frosted backdrop
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      ctx.fillStyle = "#000000";
+      drawRoundedRect(ctx, size.width / 2 - maxWidth / 2 - padding * 0.6, blockTop - fontSize * 0.55, maxWidth + padding * 1.2, totalTextHeight + fontSize * 1.1, 16);
+      ctx.fill();
+      ctx.restore();
+
+      // Accent bar
+      ctx.save();
+      ctx.fillStyle = operatorPrimaryColor;
+      drawRoundedRect(ctx, size.width / 2 - accentBarW / 2, blockTop, accentBarW, accentBarH, accentBarH / 2);
+      ctx.fill();
+      ctx.restore();
+
+      // Headline
+      ctx.save();
+      ctx.font = `700 ${fontSize}px Inter, system-ui, sans-serif`;
+      ctx.fillStyle = "#ffffff";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "rgba(0,0,0,0.6)";
+      ctx.shadowBlur = 12;
+      let lineY = blockTop + accentBarH + accentBarGap + fontSize * 0.85;
+      for (const line of lines) { ctx.fillText(line, size.width / 2, lineY); lineY += lineHeight; }
+      ctx.restore();
+
+      // Subtext / CTA
+      if (subLines.length > 0) {
+        ctx.save();
+        ctx.font = `500 ${subFontSize}px Inter, system-ui, sans-serif`;
+        ctx.fillStyle = "rgba(255,255,255,0.82)";
         ctx.textAlign = "center";
         ctx.shadowColor = "rgba(0,0,0,0.5)";
-        ctx.shadowBlur = 8;
-
-        // Word wrap
-        const words = overlayText.split(" ");
-        const lines: string[] = [];
-        let currentLine = "";
-        const maxWidth = size.width - padding * 2;
-        for (const word of words) {
-          const test = currentLine ? `${currentLine} ${word}` : word;
-          if (ctx.measureText(test).width > maxWidth && currentLine) {
-            lines.push(currentLine);
-            currentLine = word;
-          } else {
-            currentLine = test;
-          }
-        }
-        if (currentLine) lines.push(currentLine);
-
-        const lineHeight = fontSize * 1.3;
-        const totalTextHeight = lines.length * lineHeight;
-        let lineY = textY - totalTextHeight / 2 + fontSize;
-
-        for (const line of lines) {
-          ctx.fillText(line, size.width / 2, lineY);
-          lineY += lineHeight;
-        }
-
-        // Subtext
-        if (overlaySubtext) {
-          const subFontSize = fontSize * 0.5;
-          ctx.font = `${subFontSize}px system-ui, -apple-system, sans-serif`;
-          ctx.fillStyle = "rgba(255,255,255,0.9)";
-          ctx.fillText(overlaySubtext, size.width / 2, lineY + subFontSize * 0.5);
-        }
+        ctx.shadowBlur = 6;
+        const divY = lineY + subFontSize * 0.3;
+        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(size.width / 2 - maxWidth * 0.2, divY);
+        ctx.lineTo(size.width / 2 + maxWidth * 0.2, divY);
+        ctx.stroke();
+        let subY = divY + subFontSize * 1.1;
+        for (const sl of subLines) { ctx.fillText(sl.toUpperCase(), size.width / 2, subY); subY += subFontSize * 1.4; }
+        ctx.restore();
       }
+    }
 
-      ctx.shadowColor = "transparent";
-      ctx.shadowBlur = 0;
-      setCanvasReady(true);
-    };
-    img.src = selectedPhoto.src.large2x || selectedPhoto.src.large;
+    // ─── Logo watermark ───
+    if (operatorLogoUrl) {
+      try {
+        const cleanLogoUrl = operatorLogoUrl.split("?")[0];
+        const logoImg = await loadCanvasImage(cleanLogoUrl, true);
+        const logoMaxW = Math.min(size.width * 0.2, 190);
+        const logoMaxH = Math.min(size.height * 0.1, 70);
+        const logoRatio = logoImg.width / logoImg.height;
+        let logoW = logoMaxW;
+        let logoH = logoW / logoRatio;
+        if (logoH > logoMaxH) { logoH = logoMaxH; logoW = logoH * logoRatio; }
+        const logoPad = size.width * 0.04;
+        const logoX = size.width - logoW - logoPad;
+        const logoY = size.height - logoH - logoPad;
+        const pillPad = Math.round(logoH * 0.22);
+        ctx.save();
+        ctx.globalAlpha = 0.92;
+        ctx.fillStyle = "#ffffff";
+        drawRoundedRect(ctx, logoX - pillPad, logoY - pillPad, logoW + pillPad * 2, logoH + pillPad * 2, 10);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.drawImage(logoImg, logoX, logoY, logoW, logoH);
+        ctx.restore();
+      } catch { /* logo load failed — no watermark */ }
+    }
   }
 
-  function overlayBottom(): boolean {
-    return overlayPosition === "bottom";
+  async function renderCanvas() {
+    const canvas = canvasRef.current;
+    if (!canvas || !selectedPhoto) return;
+    await renderSlideToCanvas(canvas, selectedPhoto, overlayText, overlaySubtext, overlayPosition, overlayDarkness);
+    setCanvasReady(true);
   }
 
   // Re-render canvas when settings change
@@ -379,15 +584,101 @@ export default function ContentPage() {
       setCanvasReady(false);
       renderCanvas();
     }
-  }, [selectedPhoto, overlayText, overlaySubtext, overlayPosition, overlayDarkness, step]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPhoto, overlayText, overlaySubtext, overlayPosition, overlayDarkness, step, operatorLogoUrl, operatorPrimaryColor]);
 
-  // ─── Download canvas as image ───
+  // Sync active slide state into slides array whenever editing values change
+  useEffect(() => {
+    if (slides.length === 0 || step !== "create") return;
+    setSlides(prev => {
+      const next = [...prev];
+      if (next[activeSlideIdx]) {
+        next[activeSlideIdx] = { ...next[activeSlideIdx], photo: selectedPhoto, text: overlayText, subtext: overlaySubtext, position: overlayPosition, darkness: overlayDarkness };
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPhoto, overlayText, overlaySubtext, overlayPosition, overlayDarkness]);
+
+  // ─── Slide management ───
+
+  function switchToSlide(idx: number) {
+    const slide = slides[idx];
+    if (!slide) return;
+    setSelectedPhoto(slide.photo);
+    setOverlayText(slide.text);
+    setOverlaySubtext(slide.subtext);
+    setOverlayPosition(slide.position);
+    setOverlayDarkness(slide.darkness);
+    setActiveSlideIdx(idx);
+    setCanvasReady(false);
+  }
+
+  function addSlide() {
+    const newSlide: Slide = {
+      id: Date.now().toString(),
+      photo: null,
+      text: "",
+      subtext: overlaySubtext, // carry same CTA to next slide
+      position: "center",
+      darkness: 50,
+    };
+    const newIdx = slides.length;
+    setSlides(prev => [...prev, newSlide]);
+    setActiveSlideIdx(newIdx);
+    setSelectedPhoto(null);
+    setOverlayText("");
+    setCanvasReady(false);
+  }
+
+  function removeSlide(idx: number) {
+    if (slides.length <= 1) return;
+    const newSlides = slides.filter((_, i) => i !== idx);
+    const newIdx = Math.min(activeSlideIdx, newSlides.length - 1);
+    const slide = newSlides[newIdx];
+    setSlides(newSlides);
+    setActiveSlideIdx(newIdx);
+    setSelectedPhoto(slide.photo);
+    setOverlayText(slide.text);
+    setOverlaySubtext(slide.subtext);
+    setOverlayPosition(slide.position);
+    setOverlayDarkness(slide.darkness);
+    setCanvasReady(false);
+  }
+
+  async function downloadAllSlides() {
+    // Snapshot slides with current editor values merged in
+    const allSlides = slides.map((s, i) =>
+      i === activeSlideIdx
+        ? { ...s, photo: selectedPhoto, text: overlayText, subtext: overlaySubtext, position: overlayPosition, darkness: overlayDarkness }
+        : s
+    );
+    const validSlides = allSlides.filter(s => s.photo !== null);
+    if (validSlides.length === 0) { toast.error("No slides with photos to download"); return; }
+
+    setDownloadingAll(true);
+    const offCanvas = document.createElement("canvas");
+    let count = 0;
+    for (const slide of validSlides) {
+      if (!slide.photo) continue;
+      await renderSlideToCanvas(offCanvas, slide.photo, slide.text, slide.subtext, slide.position, slide.darkness);
+      const link = document.createElement("a");
+      link.download = `slide-${++count}-${platform}.png`;
+      link.href = offCanvas.toDataURL("image/png");
+      link.click();
+      await new Promise(r => setTimeout(r, 150));
+    }
+    setDownloadingAll(false);
+    toast.success(`Downloaded ${count} slide${count > 1 ? "s" : ""}!`);
+  }
+
+  // ─── Download single canvas image ───
 
   function downloadAsset() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const link = document.createElement("a");
-    link.download = `content-${platform}-${Date.now()}.png`;
+    link.download = `slide-${activeSlideIdx + 1}-${platform}.png`;
     link.href = canvas.toDataURL("image/png");
     link.click();
     toast.success("Image downloaded!");
@@ -395,21 +686,36 @@ export default function ContentPage() {
 
   // ─── Enter create step ───
 
-  function enterCreateStep() {
-    // Pre-fill overlay text from generated content
-    if (generatedContent) {
+  function enterCreateStep(chosenVisual?: VisualOption) {
+    const activeVisual = chosenVisual ?? selectedVisual;
+    let initText = "";
+    let initSubtext = "";
+    if (activeVisual?.overlay_text) {
+      initText = activeVisual.overlay_text;
+    } else if (generatedContent) {
       if ("hook" in generatedContent && generatedContent.hook) {
-        setOverlayText(generatedContent.hook);
+        initText = (generatedContent as SocialContentOutput).hook || "";
       } else if ("primary_caption" in generatedContent) {
         const caption = (generatedContent as SocialContentOutput).primary_caption;
-        setOverlayText(caption.split(".")[0] || "");
-      }
-      if ("cta" in generatedContent && generatedContent.cta) {
-        setOverlaySubtext(generatedContent.cta);
+        initText = caption.split(".")[0] || "";
       }
     }
+    if (generatedContent && "cta" in generatedContent && (generatedContent as SocialContentOutput).cta) {
+      initSubtext = (generatedContent as SocialContentOutput).cta || "";
+    }
+    setOverlayText(initText);
+    setOverlaySubtext(initSubtext);
+    setOverlayPosition("center");
+    setOverlayDarkness(50);
+    setSelectedPhoto(null);
+    setCanvasReady(false);
+    // Initialize slides with 1 slide
+    setSlides([{ id: "1", photo: null, text: initText, subtext: initSubtext, position: "center", darkness: 50 }]);
+    setActiveSlideIdx(0);
+    setUploadedPhotos([]);
+    setCustomSearchTerms([]);
     setStep("create");
-    loadPhotos();
+    loadPhotos(activeVisual ?? undefined);
   }
 
   // ─── Sensitivity badge ───
@@ -528,24 +834,52 @@ export default function ContentPage() {
   // ─── Visual card ───
 
   function VisualCard({ visual, index }: { visual: VisualOption; index: number }) {
+    const isSelected = selectedVisual === visual;
     return (
-      <div className="bg-tippd-ink rounded-lg p-4 border border-white/5 space-y-2">
-        <div className="flex items-center gap-2 text-xs text-tippd-smoke">
-          {visual.type === "image" ? <ImageIcon className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
-          <span className="font-medium">Visual {index + 1}</span>
-          <span className="text-tippd-ash">• {visual.type} • {visual.aspect_ratio}</span>
+      <div
+        className={`rounded-lg p-4 border space-y-2 transition-all cursor-pointer ${
+          isSelected
+            ? "bg-tippd-blue/10 border-tippd-blue/50 ring-1 ring-tippd-blue/30"
+            : "bg-tippd-ink border-white/5 hover:border-white/20"
+        }`}
+        onClick={() => {
+          setSelectedVisual(visual);
+          setCustomSearchTerms([]);
+          if (visual.overlay_text) setOverlayText(visual.overlay_text);
+        }}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-xs text-tippd-smoke">
+            {visual.type === "image" ? <ImageIcon className="w-3.5 h-3.5" /> : <Video className="w-3.5 h-3.5" />}
+            <span className="font-medium">Visual {index + 1}</span>
+            <span className="text-tippd-ash">• {visual.aspect_ratio}</span>
+          </div>
+          {isSelected && (
+            <span className="text-[10px] font-semibold text-tippd-blue uppercase tracking-wide">Selected</span>
+          )}
         </div>
         <p className="text-sm text-white">{visual.concept}</p>
         {visual.overlay_text && (
           <p className="text-xs text-tippd-blue italic">&ldquo;{visual.overlay_text}&rdquo;</p>
         )}
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 mb-1">
           {visual.search_terms.map((term) => (
             <span key={term} className="px-2 py-0.5 bg-tippd-steel rounded text-[10px] text-tippd-smoke">
               {term}
             </span>
           ))}
         </div>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setSelectedVisual(visual);
+            enterCreateStep(visual);
+          }}
+          className="w-full mt-1 py-1.5 rounded bg-tippd-blue/20 hover:bg-tippd-blue/40 text-tippd-blue text-xs font-semibold transition-colors flex items-center justify-center gap-1"
+        >
+          <Palette className="w-3 h-3" />
+          Use This Visual →
+        </button>
       </div>
     );
   }
@@ -898,11 +1232,11 @@ export default function ContentPage() {
               Regenerate
             </button>
             <button
-              onClick={enterCreateStep}
+              onClick={() => enterCreateStep(selectedVisual ?? undefined)}
               className="flex items-center gap-2 px-4 py-1.5 rounded bg-tippd-green text-white text-xs font-semibold hover:opacity-90"
             >
               <Palette className="w-3.5 h-3.5" />
-              Create Asset
+              {selectedVisual ? "Create Asset with Selected Visual" : "Create Asset"}
             </button>
           </div>
         </div>
@@ -915,10 +1249,13 @@ export default function ContentPage() {
 
           {/* Visual sidebar - 1 col */}
           <div className="space-y-4">
-            <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider flex items-center gap-2">
-              <ImageIcon className="w-3.5 h-3.5" />
-              Visual Suggestions
-            </h3>
+            <div>
+              <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider flex items-center gap-2 mb-1">
+                <ImageIcon className="w-3.5 h-3.5" />
+                Visual Suggestions
+              </h3>
+              <p className="text-[10px] text-tippd-ash">Click a concept to select it, or hit &ldquo;Use This Visual&rdquo; to jump straight to Create with matching photos.</p>
+            </div>
             {visuals.length > 0 ? (
               visuals.map((v, i) => <VisualCard key={i} visual={v} index={i} />)
             ) : (
@@ -1157,13 +1494,25 @@ export default function ContentPage() {
                   Preview
                 </h3>
                 {canvasReady && (
-                  <button
-                    onClick={downloadAsset}
-                    className="flex items-center gap-2 px-4 py-2 rounded bg-tippd-green text-white text-sm font-semibold hover:opacity-90"
-                  >
-                    <Download className="w-4 h-4" />
-                    Download Image
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {slides.filter(s => s.photo).length > 1 && (
+                      <button
+                        onClick={downloadAllSlides}
+                        disabled={downloadingAll}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-tippd-blue text-white text-xs font-semibold hover:opacity-90 disabled:opacity-60"
+                      >
+                        {downloadingAll ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                        All {slides.filter(s => s.photo).length}
+                      </button>
+                    )}
+                    <button
+                      onClick={downloadAsset}
+                      className="flex items-center gap-2 px-4 py-2 rounded bg-tippd-green text-white text-sm font-semibold hover:opacity-90"
+                    >
+                      <Download className="w-4 h-4" />
+                      Download
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1174,6 +1523,12 @@ export default function ContentPage() {
                     className="w-full h-full rounded-lg object-contain"
                     style={{ aspectRatio: previewRatio }}
                   />
+                  {/* Slide counter badge */}
+                  {slides.length > 1 && (
+                    <div className="absolute top-2 left-2 bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                      {activeSlideIdx + 1} / {slides.length}
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div
@@ -1183,15 +1538,182 @@ export default function ContentPage() {
                   <p className="text-sm text-tippd-ash">Select a photo below to preview your asset</p>
                 </div>
               )}
+
+              {/* ─── Slide strip ─── */}
+              <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+                {slides.map((slide, i) => (
+                  <div key={slide.id} className="relative flex-shrink-0">
+                    <button
+                      onClick={() => switchToSlide(i)}
+                      className={`relative w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                        i === activeSlideIdx
+                          ? "border-tippd-blue ring-2 ring-tippd-blue/40"
+                          : "border-white/10 hover:border-white/30"
+                      }`}
+                    >
+                      {slide.photo ? (
+                        <img src={slide.photo.src.tiny || slide.photo.src.small} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-tippd-steel flex items-center justify-center">
+                          <span className="text-tippd-ash text-xs">{i + 1}</span>
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-[8px] text-white text-center py-0.5">
+                        Slide {i + 1}
+                      </div>
+                    </button>
+                    {slides.length > 1 && (
+                      <button
+                        onClick={() => removeSlide(i)}
+                        className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center hover:bg-red-400 z-10"
+                        title="Remove slide"
+                      >×</button>
+                    )}
+                  </div>
+                ))}
+                {/* Add slide button */}
+                <button
+                  onClick={addSlide}
+                  className="flex-shrink-0 w-16 h-16 rounded-lg border-2 border-dashed border-white/20 hover:border-tippd-blue/50 flex flex-col items-center justify-center gap-1 text-tippd-ash hover:text-tippd-blue transition-colors"
+                  title="Add slide"
+                >
+                  <span className="text-xl leading-none">+</span>
+                  <span className="text-[8px]">Add</span>
+                </button>
+              </div>
             </div>
 
             {/* Photo grid */}
             <div className="rounded-lg border border-white/10 bg-tippd-charcoal p-4">
-              <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider mb-3 flex items-center gap-2">
-                <ImageIcon className="w-3.5 h-3.5" />
-                Choose a Photo
-                {photosLoading && <RefreshCw className="w-3 h-3 animate-spin ml-1" />}
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold text-tippd-smoke uppercase tracking-wider flex items-center gap-2">
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  Choose a Photo
+                  {photosLoading && <RefreshCw className="w-3 h-3 animate-spin ml-1" />}
+                </h3>
+                <div className="flex items-center gap-2">
+                  {/* Refresh Pexels results */}
+                  <button
+                    onClick={() => loadPhotos()}
+                    disabled={photosLoading}
+                    className="text-[10px] text-tippd-ash hover:text-white flex items-center gap-1 disabled:opacity-40"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Refresh
+                  </button>
+                  {/* Upload own photos */}
+                  <button
+                    onClick={() => uploadInputRef.current?.click()}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded bg-tippd-blue/20 hover:bg-tippd-blue/40 text-tippd-blue text-[10px] font-semibold transition-colors border border-tippd-blue/30"
+                  >
+                    <Download className="w-3 h-3 rotate-180" />
+                    Upload Your Photos
+                  </button>
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handlePhotoUpload}
+                  />
+                </div>
+              </div>
+
+              {/* Search terms editor */}
+              <div className="mb-3 pb-3 border-b border-white/5">
+                <p className="text-[10px] text-tippd-ash mb-2">Search terms — edit or add to find better photos</p>
+                {/* Tag list */}
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {customSearchTerms.map((term, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 px-2 py-1 bg-tippd-steel rounded text-[11px] text-white"
+                    >
+                      {term}
+                      <button
+                        onClick={() => setCustomSearchTerms((prev) => prev.filter((_, idx) => idx !== i))}
+                        className="text-tippd-ash hover:text-white ml-0.5"
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  {customSearchTerms.length === 0 && (
+                    <span className="text-[10px] text-tippd-ash italic">No terms yet — type below</span>
+                  )}
+                </div>
+                {/* Input + add + search row */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={searchTermInput}
+                    onChange={(e) => setSearchTermInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if ((e.key === "Enter" || e.key === ",") && searchTermInput.trim()) {
+                        e.preventDefault();
+                        const term = searchTermInput.trim().replace(/,$/, "");
+                        if (term && !customSearchTerms.includes(term)) {
+                          setCustomSearchTerms((prev) => [...prev, term].slice(0, 3));
+                        }
+                        setSearchTermInput("");
+                      }
+                    }}
+                    placeholder='e.g. "dumpster driveway" — press Enter to add'
+                    className="flex-1 h-8 px-3 rounded bg-tippd-ink border border-white/10 text-xs text-white placeholder:text-tippd-ash outline-none focus:border-tippd-blue"
+                  />
+                  <button
+                    onClick={() => {
+                      const term = searchTermInput.trim().replace(/,$/, "");
+                      if (term && !customSearchTerms.includes(term)) {
+                        setCustomSearchTerms((prev) => [...prev, term].slice(0, 3));
+                      }
+                      setSearchTermInput("");
+                    }}
+                    disabled={!searchTermInput.trim()}
+                    className="px-3 h-8 rounded bg-tippd-steel text-tippd-smoke hover:text-white text-xs disabled:opacity-40"
+                  >
+                    Add
+                  </button>
+                  <button
+                    onClick={() => loadPhotos()}
+                    disabled={photosLoading || customSearchTerms.length === 0}
+                    className="px-3 h-8 rounded bg-tippd-blue text-white text-xs font-semibold hover:opacity-90 disabled:opacity-40 flex items-center gap-1"
+                  >
+                    {photosLoading ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Hash className="w-3 h-3" />}
+                    Search
+                  </button>
+                </div>
+                <p className="text-[9px] text-tippd-ash mt-1.5">Max 3 terms · Press Enter or comma to add</p>
+              </div>
+
+              {/* Uploaded photos strip */}
+              {uploadedPhotos.length > 0 && (
+                <div className="mb-3 pb-3 border-b border-white/5">
+                  <p className="text-[10px] text-tippd-ash mb-2">Your uploaded photos ({uploadedPhotos.length})</p>
+                  <div className="flex flex-wrap gap-2">
+                    {uploadedPhotos.map((photo) => (
+                      <button
+                        key={photo.id}
+                        onClick={() => setSelectedPhoto(photo)}
+                        className={`relative w-20 h-20 rounded-lg overflow-hidden border-2 transition-all ${
+                          selectedPhoto?.id === photo.id
+                            ? "border-tippd-green ring-2 ring-tippd-green/30"
+                            : "border-transparent hover:border-white/20"
+                        }`}
+                      >
+                        <img src={photo.src.medium} alt={photo.alt} className="w-full h-full object-cover" />
+                        {selectedPhoto?.id === photo.id && (
+                          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-tippd-green flex items-center justify-center">
+                            <Check className="w-3 h-3 text-white" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {photos.length > 0 ? (
                 <div className="grid grid-cols-3 gap-2">
@@ -1230,7 +1752,7 @@ export default function ContentPage() {
                 <div className="text-center py-8">
                   <p className="text-xs text-tippd-ash mb-2">No photos found</p>
                   <button
-                    onClick={loadPhotos}
+                    onClick={() => loadPhotos()}
                     className="px-3 py-1.5 bg-tippd-steel text-tippd-smoke rounded text-xs hover:text-white"
                   >
                     Retry
@@ -1328,15 +1850,32 @@ export default function ContentPage() {
               </div>
             )}
 
-            {/* Download button (repeated for sidebar) */}
+            {/* Download buttons */}
             {canvasReady && selectedPhoto && (
-              <button
-                onClick={downloadAsset}
-                className="w-full py-3 bg-tippd-green text-white rounded-md text-sm font-semibold hover:opacity-90 flex items-center justify-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Download Ready-to-Post Image
-              </button>
+              <div className="space-y-2">
+                <button
+                  onClick={downloadAsset}
+                  className="w-full py-2.5 bg-tippd-green text-white rounded-md text-sm font-semibold hover:opacity-90 flex items-center justify-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download This Slide
+                </button>
+                {slides.filter(s => s.photo).length > 1 && (
+                  <button
+                    onClick={downloadAllSlides}
+                    disabled={downloadingAll}
+                    className="w-full py-2.5 bg-tippd-blue text-white rounded-md text-sm font-semibold hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+                  >
+                    {downloadingAll ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                    {downloadingAll ? "Downloading..." : `Download All ${slides.filter(s => s.photo).length} Slides`}
+                  </button>
+                )}
+                {operatorLogoUrl && (
+                  <p className="text-[9px] text-tippd-ash text-center flex items-center justify-center gap-1">
+                    <span className="text-tippd-green">✓</span> Your logo is auto-stamped on every image
+                  </p>
+                )}
+              </div>
             )}
           </div>
         </div>

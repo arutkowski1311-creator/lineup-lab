@@ -72,13 +72,19 @@ export default function BrandSettings() {
     fd.append("file", file);
     try {
       const res = await fetch("/api/settings/logo", { method: "POST", body: fd });
-      if (!res.ok) throw new Error("Upload failed");
       const data = await res.json();
-      setForm((prev) => ({ ...prev, logo_url: data.logo_url }));
-    } catch {
-      setErr("Logo upload failed. Make sure the logos storage bucket exists in Supabase.");
+      if (!res.ok) {
+        throw new Error(data?.error || data?.message || `Upload failed (${res.status})`);
+      }
+      // Add cache-busting param so the new logo shows immediately
+      const url = data.logo_url + `?t=${Date.now()}`;
+      setForm((prev) => ({ ...prev, logo_url: url }));
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Logo upload failed");
     } finally {
       setUploadingLogo(false);
+      // Reset file input so the same file can be re-selected if needed
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 

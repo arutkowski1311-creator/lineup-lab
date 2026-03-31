@@ -39,11 +39,19 @@ export async function POST(
     if (!parsed.success) return error(parsed.error.message);
     newStatus = parsed.data.status;
   } else if (body.action) {
-    // Map driver actions to job statuses
-    // Map driver actions to the correct next status based on current state
-    const arrivedStatus = ["pickup_requested", "pickup_scheduled", "en_route_pickup"].includes(currentStatus)
-      ? "en_route_pickup"
-      : "en_route_drop";
+    // Map driver actions to job statuses based on current state
+
+    // "arrived" means different things depending on where the job is in its lifecycle:
+    // - scheduled / en_route_drop → arriving to DROP the dumpster
+    // - dropped / active / pickup_requested / pickup_scheduled / en_route_pickup → arriving to PICK UP
+    // - any other status (already picked_up, invoiced, etc.) → no status change, just log the arrival
+    let arrivedStatus: string = currentStatus; // default: no change
+    if (["scheduled", "en_route_drop"].includes(currentStatus)) {
+      arrivedStatus = "en_route_drop";
+    } else if (["dropped", "active", "pickup_requested", "pickup_scheduled", "en_route_pickup"].includes(currentStatus)) {
+      arrivedStatus = "en_route_pickup";
+    }
+    // If already picked_up/invoiced/paid, arrivedStatus stays = currentStatus (no change, no error)
 
     const actionMap: Record<string, string> = {
       arrived: arrivedStatus,
@@ -58,6 +66,11 @@ export async function POST(
 
     // For dump actions, just return ok without changing status
     if (body.action === "dump_arrived" || body.action === "dump_complete") {
+      return json({ ok: true, status: currentStatus });
+    }
+
+    // If no status change needed (already at target or beyond), short-circuit — no validation required
+    if (newStatus === currentStatus) {
       return json({ ok: true, status: currentStatus });
     }
   } else {

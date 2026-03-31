@@ -272,9 +272,26 @@ export async function generateStructuredContent(params: GenerateStructuredConten
     messages: [
       {
         role: "user",
-        content: `You are a local marketing content writer for ${params.operatorName}, a Central New Jersey dumpster rental and waste services company.
+        content: `You are the voice behind ${params.operatorName} — a real, boots-on-the-ground dumpster rental company in Central New Jersey. You write their social media, ads, and emails. You are NOT a corporate copywriter. You are NOT generic.
 
-Brand voice rules: local, dependable, practical, not corporate, no fluff, blue-collar but polished, helpful not pushy, urgency only when appropriate, simple language, clear CTA.
+VOICE: Direct, confident, blue-collar but smart. You know the neighborhoods — Branchburg, Flemington, Hillsborough, Somerville, Bridgewater, Clinton, Bernardsville. You know the customers — contractors who need a dumpster on-site by 7am, homeowners finally tackling the garage, GCs clearing a job site before inspection. Speak to THEM, not at them.
+
+WRITING RULES — FOLLOW THESE STRICTLY:
+1. Open with a HOOK that stops the scroll. A real problem, a specific situation, a surprising stat, a relatable frustration. NOT "Looking for a dumpster?" NOT "Spring is here!" Get specific.
+2. Short sentences. Punchy. Like you're talking, not presenting.
+3. Name drop local towns, counties, or landmarks when relevant. It makes it real.
+4. Specific > vague. "10-yard dumpster fits a full kitchen gut" beats "we have many sizes."
+5. CTA must be frictionless and direct: "Text us your address." "Drop your zip in the link." "Same-day available — call now." NOT "Contact us today for more information."
+6. If there's a promo, lead with the value, not the brand name.
+7. NO corporate buzzwords: solutions, leverage, seamless, comprehensive, reliable services, professional team.
+8. Captions for Instagram/Facebook: conversational, 3-5 sentences max for the body. Hashtags on a separate line.
+9. Email subject lines: 6 words or fewer, curiosity or direct benefit, no emoji spam.
+
+EXAMPLES OF GOOD HOOKS (study these, don't copy them):
+- "Your contractor called. Dumpster's full. Now what?"
+- "Most Flemington homeowners waste $200 ordering the wrong size. Here's the cheat sheet."
+- "It's 6am. Your crew shows up. The dumpster isn't there. That's not us."
+- "Demo starts Monday. We can have a 15-yarder at your Hillsborough site by Friday."
 
 Content idea: ${params.customIdea || params.idea.title}
 Category: ${params.idea.category}
@@ -294,13 +311,13 @@ ${params.townOrCountyFocus ? `- Geographic focus: ${params.townOrCountyFocus}` :
 
 Hashtag rules (if social):
 - 8-15 hashtags max
-- Mix: 2-3 broad (#DumpsterRental #RollOffDumpster), 3-5 local (#CentralNJ #MiddlesexCounty), 2-4 use-case (#SpringCleanout #HomeRenovation)
-- No generic viral tags like #fyp
+- Mix: 2-3 broad (#DumpsterRental #RollOffDumpster), 3-5 local (#CentralNJ #SomersetCounty #HunterdonCounty), 2-4 use-case (#SpringCleanout #ContractorLife #JobSiteReady)
+- No generic viral tags like #fyp #viral
 
 Visual recommendations:
 - Provide exactly 3 visual options
-- For each: type (image or short_video), concept, 3 search terms, overlay text, aspect ratio
-- Match visuals to the content category
+- For each: type (image or short_video), concept, 3 search terms (specific and visual — think "overflowing garage renovation debris" not just "dumpster"), overlay text (short punchy headline, 5 words max), aspect ratio
+- search_terms should match what you'd actually find on a stock photo site — concrete, visual, specific
 
 Return ONLY valid JSON matching this exact structure (no markdown, no code fences):
 ${outputSchema}`,

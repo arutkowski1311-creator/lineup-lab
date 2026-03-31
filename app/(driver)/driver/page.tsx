@@ -416,10 +416,9 @@ export default function DriverRoute() {
           const isDumpSegment = seg.type === "dump";
           const isYardSegment = seg.type === "yard_return" || seg.type === "yard_depart";
           const isLunchSegment = seg.type === "lunch";
-          const isTappable = !isCompleted && (
-            (isJobSegment && seg.job_id) || isDumpSegment || isYardSegment || isLunchSegment
-          );
-          const href = isJobSegment && seg.job_id ? `/driver/job/${seg.job_id}` : null;
+          // Always tappable for any active segment type (use segment ID, not job_id, to avoid null issues)
+          const isTappable = !isCompleted && (isJobSegment || isDumpSegment || isYardSegment || isLunchSegment);
+          const href = isJobSegment ? `/driver/job/${seg.id}` : null;
 
           return (
             <div

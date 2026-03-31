@@ -137,11 +137,9 @@ export default function DriverJobPage() {
       }
       const data = await res.json();
       const segs = data.segments || [];
-      // Find segment by ID first, then by job_id (URL might pass either)
+      // Find segment by segment ID (primary) — fall back to job_id for legacy URLs
       let seg = segs.find((s: any) => s.id === segmentId);
-      if (!seg) {
-        seg = segs.find((s: any) => s.job_id === segmentId);
-      }
+      if (!seg) seg = segs.find((s: any) => s.job_id === segmentId);
 
       if (!seg) {
         // Still not found — could be a stale link. Show error instead of redirecting
@@ -269,7 +267,13 @@ export default function DriverJobPage() {
       }
 
       // Regular job actions — use the job status API
-      const jobId = segment?.job_id || segmentId;
+      // segment.job_id is always the correct job UUID; segmentId is the segment ID now
+      const jobId = segment?.job_id;
+      if (!jobId) {
+        setActionError("No job linked to this stop");
+        setProcessing(false);
+        return { ok: false, error: "No job linked" };
+      }
 
       const res = await fetch(`/api/jobs/${jobId}/status`, {
         method: "POST",

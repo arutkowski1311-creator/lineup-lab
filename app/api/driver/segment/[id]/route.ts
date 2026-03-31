@@ -63,16 +63,32 @@ export async function POST(
   const updates: Record<string, any> = {};
   const jobUpdates: Record<string, any> = {};
 
+  // Fetch current job status so we only apply transitions that are valid
+  let currentJobStatus: string | null = null;
+  if (segment.job_id) {
+    const { data: jobRow } = await supabase
+      .from("jobs")
+      .select("status")
+      .eq("id", segment.job_id)
+      .single() as any;
+    currentJobStatus = jobRow?.status ?? null;
+  }
+
   switch (action) {
     case "arrived":
       updates.arrived_at = now;
       updates.status = "active";
       if (segment.job_id) {
-        if (segment.type === "drop") {
+        if (segment.type === "drop" && currentJobStatus === "scheduled") {
+          // Only advance to en_route_drop if the job hasn't moved past scheduled
           jobUpdates.status = "en_route_drop";
-        } else if (segment.type === "pickup") {
+        } else if (
+          segment.type === "pickup" &&
+          ["dropped", "pickup_requested", "pickup_scheduled"].includes(currentJobStatus ?? "")
+        ) {
           jobUpdates.status = "en_route_pickup";
         }
+        // If already at a further status (e.g. already dropped/picked_up), leave it alone
       }
       break;
 
@@ -89,7 +105,10 @@ export async function POST(
         updates.actual_stop_minutes = Math.round((nowMs - arrivedMs) / 60000);
       }
       if (segment.job_id) {
-        jobUpdates.status = "dropped";
+        // Only set dropped if not already further along
+        if (!["picked_up", "invoiced", "paid"].includes(currentJobStatus ?? "")) {
+          jobUpdates.status = "dropped";
+        }
         jobUpdates.actual_drop_time = now;
         if (photos && photos.length > 0) {
           jobUpdates.photos_drop = photos;
@@ -113,7 +132,10 @@ export async function POST(
         updates.actual_stop_minutes = Math.round((nowMs - arrivedMs) / 60000);
       }
       if (segment.job_id) {
-        jobUpdates.status = "picked_up";
+        // Only set picked_up if not already invoiced/paid
+        if (!["invoiced", "paid"].includes(currentJobStatus ?? "")) {
+          jobUpdates.status = "picked_up";
+        }
         jobUpdates.actual_pickup_time = now;
         jobUpdates.weight_lbs = weight || null;
         if (photos && photos.length > 0) {
