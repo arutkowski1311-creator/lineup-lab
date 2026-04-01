@@ -1,0 +1,92 @@
+"use client";
+
+import { cn, playerAge, playerFullName } from "@/lib/utils";
+
+interface PlayerCardProps {
+  player: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    dob: string;
+    fieldingOverall: number;
+    catching: number;
+    throwing: number;
+    battingOverall: number;
+    active: boolean;
+  };
+  onEdit?: (player: PlayerCardProps["player"]) => void;
+  compact?: boolean;
+}
+
+function RatingDot({ value, label }: { value: number; label?: string }) {
+  const color =
+    value <= 2
+      ? "bg-red-500 text-white"
+      : value === 3
+        ? "bg-yellow-400 text-yellow-900"
+        : "bg-green-500 text-white";
+
+  return (
+    <span className="flex items-center gap-1">
+      {label && (
+        <span className="text-xs text-muted-foreground">{label}</span>
+      )}
+      <span
+        className={cn(
+          "inline-flex items-center justify-center rounded-full text-[10px] font-bold",
+          label ? "size-6" : "size-5",
+          color
+        )}
+      >
+        {value}
+      </span>
+    </span>
+  );
+}
+
+export function PlayerCard({ player, onEdit, compact = false }: PlayerCardProps) {
+  const age = playerAge(player.dob);
+  const name = playerFullName(player.firstName, player.lastName);
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={() => onEdit?.(player)}
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/50 active:bg-muted"
+      >
+        <div className="flex-1 min-w-0">
+          <span className="font-medium truncate block">{name}</span>
+          <span className="text-xs text-muted-foreground">Age {age}</span>
+        </div>
+        <div className="flex items-center gap-1">
+          <RatingDot value={player.fieldingOverall} />
+          <RatingDot value={player.catching} />
+          <RatingDot value={player.throwing} />
+          <RatingDot value={player.battingOverall} />
+        </div>
+      </button>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => onEdit?.(player)}
+      className="flex w-full flex-col gap-3 rounded-xl border bg-card p-4 text-left shadow-sm transition-colors hover:bg-muted/30 active:bg-muted/50"
+    >
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold text-base">{name}</p>
+          <p className="text-sm text-muted-foreground">Age {age}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        <RatingDot value={player.fieldingOverall} label="Field" />
+        <RatingDot value={player.catching} label="Catch" />
+        <RatingDot value={player.throwing} label="Throw" />
+        <RatingDot value={player.battingOverall} label="Bat" />
+      </div>
+    </button>
+  );
+}
