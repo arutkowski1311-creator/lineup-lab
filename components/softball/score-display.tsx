@@ -37,57 +37,70 @@ export function ScoreDisplay({
       <table className="w-full min-w-[320px] border-collapse text-sm">
         <thead>
           <tr>
-            <th className="px-2 py-1.5 text-left font-medium text-muted-foreground w-16" />
+            <th className="px-2 py-1.5 text-left font-medium w-16" style={{ color: "hsl(40 5% 50%)" }} />
             {innings.map((inn) => (
               <th
                 key={inn.inningNumber}
                 className={cn(
                   "px-2 py-1.5 text-center font-medium min-w-[32px]",
                   currentInning === inn.inningNumber
-                    ? "text-primary font-bold"
-                    : "text-muted-foreground"
+                    ? "font-bold"
+                    : ""
                 )}
+                style={{
+                  color: currentInning === inn.inningNumber
+                    ? "hsl(46 100% 55%)"
+                    : "hsl(40 5% 50%)",
+                }}
               >
                 {inn.inningNumber}
               </th>
             ))}
-            <th className="px-2 py-1.5 text-center font-bold">R</th>
+            <th className="px-2 py-1.5 text-center font-bold" style={{ color: "hsl(46 100% 55%)" }}>R</th>
           </tr>
         </thead>
         <tbody>
-          <tr className="border-t border-border/50">
-            <td className="px-2 py-1.5 font-medium text-xs truncate max-w-[64px]">
+          <tr style={{ borderTop: "1px solid hsl(0 0% 18%)" }}>
+            <td className="px-2 py-1.5 font-medium text-xs truncate max-w-[64px] text-gold-gradient">
               {teamName}
             </td>
             {innings.map((inn) => (
               <td
                 key={inn.inningNumber}
                 className={cn(
-                  "px-2 py-1.5 text-center",
-                  currentInning === inn.inningNumber && "bg-primary/5 font-bold"
+                  "px-2 py-1.5 text-center font-mono",
+                  currentInning === inn.inningNumber && "font-bold"
                 )}
+                style={{
+                  color: "hsl(40 20% 92%)",
+                  background: currentInning === inn.inningNumber ? "hsl(46 100% 50% / 0.05)" : undefined,
+                }}
               >
                 {inn.usRuns}
               </td>
             ))}
-            <td className="px-2 py-1.5 text-center font-bold">{totalUs}</td>
+            <td className="px-2 py-1.5 text-center font-bold font-mono led-segment" style={{ color: "hsl(46 100% 55%)", textShadow: "0 0 8px hsl(46 100% 55% / 0.4)" }}>{totalUs}</td>
           </tr>
-          <tr className="border-t border-border/50">
-            <td className="px-2 py-1.5 font-medium text-xs truncate max-w-[64px]">
+          <tr style={{ borderTop: "1px solid hsl(0 0% 18%)" }}>
+            <td className="px-2 py-1.5 font-medium text-xs truncate max-w-[64px]" style={{ color: "hsl(40 5% 50%)" }}>
               {opponentName}
             </td>
             {innings.map((inn) => (
               <td
                 key={inn.inningNumber}
                 className={cn(
-                  "px-2 py-1.5 text-center",
-                  currentInning === inn.inningNumber && "bg-primary/5 font-bold"
+                  "px-2 py-1.5 text-center font-mono",
+                  currentInning === inn.inningNumber && "font-bold"
                 )}
+                style={{
+                  color: "hsl(40 20% 85%)",
+                  background: currentInning === inn.inningNumber ? "hsl(46 100% 50% / 0.05)" : undefined,
+                }}
               >
                 {inn.opponentRuns}
               </td>
             ))}
-            <td className="px-2 py-1.5 text-center font-bold">{totalOpp}</td>
+            <td className="px-2 py-1.5 text-center font-bold font-mono led-segment" style={{ color: "hsl(40 20% 85%)" }}>{totalOpp}</td>
           </tr>
         </tbody>
       </table>

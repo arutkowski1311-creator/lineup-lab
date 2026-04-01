@@ -4,9 +4,10 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
+  // Create default team
   const team = await prisma.team.upsert({
     where: { id: "default-team" },
-    update: {},
+    update: { slug: "thunder" },
     create: {
       id: "default-team",
       name: "My Team",
@@ -15,6 +16,9 @@ async function main() {
     },
   });
 
+  console.log("Created team:", team.name);
+
+  // Create coach account
   const hashedPassword = await bcrypt.hash("Megan1311!", 10);
   const user = await prisma.user.upsert({
     where: { email: "arutkowski1311@gmail.com" },
@@ -27,6 +31,7 @@ async function main() {
     },
   });
 
+  // Create team membership
   await prisma.teamMembership.upsert({
     where: { id: "coach-membership" },
     update: {},
@@ -39,9 +44,16 @@ async function main() {
     },
   });
 
-  console.log("Done! Sign in with arutkowski1311@gmail.com");
+  console.log("Created coach account: arutkowski1311@gmail.com");
+  console.log("Seed complete! Add your roster at /roster");
 }
 
 main()
-  .then(async () => { await prisma.$disconnect(); })
-  .catch(async (e) => { console.error(e); await prisma.$disconnect(); process.exit(1); });
+  .then(async () => {
+    await prisma.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error(e);
+    await prisma.$disconnect();
+    process.exit(1);
+  });

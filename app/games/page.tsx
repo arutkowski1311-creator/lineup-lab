@@ -32,6 +32,33 @@ function statusLabel(status: GameStatus) {
   }
 }
 
+function StatusBadge({ status }: { status: GameStatus }) {
+  switch (status) {
+    case "live":
+      return (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-900/60 px-2.5 py-0.5 text-xs font-semibold text-red-300 ring-1 ring-red-500/40 shadow-[0_0_8px_hsl(0_100%_50%/0.3)]">
+          <span className="relative flex size-2">
+            <span className="absolute inline-flex size-full animate-ping rounded-full bg-red-400 opacity-75" />
+            <span className="relative inline-flex size-2 rounded-full bg-red-500" />
+          </span>
+          Live
+        </span>
+      );
+    case "final":
+      return (
+        <span className="inline-flex items-center rounded-full bg-gold-dim/15 px-2.5 py-0.5 text-xs font-semibold text-gold-dim ring-1 ring-gold-dim/30">
+          Final
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center rounded-full bg-muted/50 px-2.5 py-0.5 text-xs font-semibold text-muted-foreground ring-1 ring-border/50">
+          Scheduled
+        </span>
+      );
+  }
+}
+
 function gameHref(game: GameData) {
   return `/games/${game.id}/hub`;
 }
@@ -59,8 +86,14 @@ export default function GamesPage() {
   return (
     <div className="flex flex-col gap-4 px-4 py-6 max-w-lg mx-auto">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Games</h1>
-        <Button size="sm" render={<Link href="/games/new" />}>
+        <h1 className="text-2xl font-bold tracking-tight text-gold-gradient">
+          Games
+        </h1>
+        <Button
+          size="sm"
+          className="bg-cardinal-gradient text-gold font-semibold hover:opacity-90 transition-opacity"
+          render={<Link href="/games/new" />}
+        >
           <Plus className="size-4 mr-1" />
           New Game
         </Button>
@@ -71,29 +104,41 @@ export default function GamesPage() {
           title="No games yet"
           description="Create your first game to generate lineups."
           action={
-            <Button render={<Link href="/games/new" />}>
+            <Button
+              className="bg-cardinal-gradient text-gold font-semibold hover:opacity-90 transition-opacity"
+              render={<Link href="/games/new" />}
+            >
               New Game
             </Button>
           }
         />
       ) : (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-0 divide-y divide-border/40">
           {games.map((game) => (
-            <Link key={game.id} href={gameHref(game)}>
-              <Card className="transition-shadow hover:shadow-md active:shadow-sm">
-                <CardContent className="flex items-center gap-4 py-2">
+            <Link key={game.id} href={gameHref(game)} className="block">
+              <Card
+                className={cn(
+                  "card-glow rounded-none border-x border-y-0 border-border/30 bg-card/60 backdrop-blur-sm transition-all hover:bg-card/80",
+                  "first:rounded-t-lg first:border-t last:rounded-b-lg last:border-b",
+                  game.gameStatus === "live" &&
+                    "ring-1 ring-red-500/20 shadow-[0_0_12px_hsl(0_100%_50%/0.1)]"
+                )}
+              >
+                <CardContent className="flex items-center gap-4 py-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="font-semibold truncate">
+                      <p className="font-semibold truncate text-foreground">
                         vs {game.opponentName}
                       </p>
                       {game.homeOrAway && (
-                        <span className={cn(
-                          "inline-flex items-center justify-center size-5 rounded text-[10px] font-bold shrink-0",
-                          game.homeOrAway === "home"
-                            ? "bg-blue-100 text-blue-700"
-                            : "bg-orange-100 text-orange-700"
-                        )}>
+                        <span
+                          className={cn(
+                            "inline-flex items-center justify-center size-5 rounded text-[10px] font-bold shrink-0",
+                            game.homeOrAway === "home"
+                              ? "bg-cardinal/20 text-cardinal-bright"
+                              : "bg-gold/15 text-gold-dim"
+                          )}
+                        >
                           {game.homeOrAway === "home" ? "H" : "A"}
                         </span>
                       )}
@@ -102,15 +147,13 @@ export default function GamesPage() {
                       {formatDate(game.gameDate)}
                     </p>
                   </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <Badge variant={statusVariant(game.gameStatus)}>
-                      {statusLabel(game.gameStatus)}
-                    </Badge>
+                  <div className="flex flex-col items-end gap-1.5 shrink-0">
+                    <StatusBadge status={game.gameStatus} />
                     {game.gameStatus === "final" &&
                       game.finalTeamScore !== null &&
                       game.finalOpponentScore !== null && (
-                        <span className="text-sm font-mono font-semibold">
-                          {game.finalTeamScore}-{game.finalOpponentScore}
+                        <span className="font-mono text-sm font-bold tracking-wider text-gold">
+                          {game.finalTeamScore}&ndash;{game.finalOpponentScore}
                         </span>
                       )}
                   </div>

@@ -43,13 +43,13 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        softball: {
-          blue: "#1D5BA4",
-          navy: "#0F2D52",
-          green: "#2D8B4E",
-          red: "#C0392B",
-          gold: "#D4A017",
-          field: "#4A7C3F",
+        cardinal: {
+          DEFAULT: "hsl(var(--cardinal))",
+          bright: "hsl(var(--cardinal-bright))",
+        },
+        gold: {
+          DEFAULT: "hsl(var(--gold))",
+          dim: "hsl(var(--gold-dim))",
         },
       },
       borderRadius: {
@@ -59,6 +59,28 @@ const config: Config = {
       },
       fontFamily: {
         sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
+        mono: ["SF Mono", "Fira Code", "Fira Mono", "Roboto Mono", "monospace"],
+      },
+      keyframes: {
+        "score-pop": {
+          "0%": { transform: "scale(1)" },
+          "50%": { transform: "scale(1.3)" },
+          "100%": { transform: "scale(1)" },
+        },
+        "bulb-flash": {
+          "0%": { opacity: "0.3" },
+          "50%": { opacity: "1" },
+          "100%": { opacity: "1" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.7" },
+        },
+      },
+      animation: {
+        "score-pop": "score-pop 0.4s ease-out",
+        "bulb-flash": "bulb-flash 0.3s ease-out",
+        "glow-pulse": "glow-pulse 2s ease-in-out infinite",
       },
     },
   },

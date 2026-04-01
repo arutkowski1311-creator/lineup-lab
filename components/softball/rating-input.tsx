@@ -23,9 +23,20 @@ export function RatingInput({ value, onChange, label }: RatingInputProps) {
               className={cn(
                 "flex items-center justify-center rounded-lg text-sm font-bold min-w-[44px] min-h-[44px] transition-all",
                 isSelected
-                  ? "bg-primary text-primary-foreground ring-2 ring-primary ring-offset-2"
-                  : "border border-input bg-background text-foreground hover:bg-muted"
+                  ? "ring-2 ring-offset-1"
+                  : "border hover:bg-muted"
               )}
+              style={isSelected ? {
+                background: "hsl(46 100% 50%)",
+                color: "hsl(0 0% 7%)",
+                borderColor: "hsl(46 100% 55%)",
+                boxShadow: "0 0 10px hsl(46 100% 50% / 0.3)",
+                ringColor: "hsl(46 100% 50%)",
+              } : {
+                background: "hsl(0 0% 12%)",
+                borderColor: "hsl(0 0% 22%)",
+                color: "hsl(40 20% 85%)",
+              }}
             >
               {n}
             </button>

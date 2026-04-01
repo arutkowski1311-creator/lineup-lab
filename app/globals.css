@@ -4,26 +4,41 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 220 20% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 220 20% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 20% 14%;
-    --primary: 217 72% 40%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 220 20% 20%;
-    --muted: 220 14% 96%;
-    --muted-foreground: 220 10% 46%;
-    --accent: 142 55% 40%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    /* USC Dark Theme — Cardinal & Gold */
+    --background: 0 0% 7%;
+    --foreground: 40 20% 92%;
+    --card: 0 0% 10%;
+    --card-foreground: 40 20% 92%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 40 20% 92%;
+    --primary: 46 100% 50%;
+    --primary-foreground: 0 0% 7%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 40 20% 88%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 40 5% 55%;
+    --accent: 0 75% 35%;
+    --accent-foreground: 40 20% 95%;
+    --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 217 72% 40%;
-    --radius: 0.625rem;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 46 100% 50%;
+    --radius: 0.75rem;
+
+    /* USC brand tokens */
+    --cardinal: 0 100% 30%;
+    --cardinal-bright: 0 85% 42%;
+    --gold: 46 100% 50%;
+    --gold-dim: 43 70% 35%;
+    --scoreboard-bg: 120 15% 8%;
+    --scoreboard-border: 40 30% 20%;
+    --led-on: 46 100% 55%;
+    --led-off: 46 20% 12%;
+    --led-red-on: 0 100% 50%;
+    --led-red-off: 0 30% 12%;
+    --led-green-on: 120 80% 45%;
+    --led-green-off: 120 20% 12%;
   }
 
   * {
@@ -32,6 +47,78 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* LED/Dot-matrix number font simulation */
+@layer components {
+  .led-segment {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  .led-glow {
+    text-shadow: 0 0 10px hsl(var(--led-on)), 0 0 20px hsl(var(--led-on) / 0.5), 0 0 40px hsl(var(--led-on) / 0.2);
+  }
+
+  .led-glow-red {
+    text-shadow: 0 0 10px hsl(var(--led-red-on)), 0 0 20px hsl(var(--led-red-on) / 0.5);
+  }
+
+  .led-glow-green {
+    text-shadow: 0 0 10px hsl(var(--led-green-on)), 0 0 20px hsl(var(--led-green-on) / 0.5);
+  }
+
+  .scoreboard-panel {
+    background: linear-gradient(180deg, hsl(0 0% 8%) 0%, hsl(0 0% 5%) 100%);
+    border: 2px solid hsl(var(--scoreboard-border));
+    box-shadow: inset 0 1px 0 hsl(0 0% 15% / 0.3), 0 4px 20px hsl(0 0% 0% / 0.5);
+  }
+
+  .bulb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid hsl(0 0% 20%);
+    transition: all 0.3s ease;
+  }
+
+  .bulb-on-gold {
+    background: hsl(var(--gold));
+    box-shadow: 0 0 8px hsl(var(--gold)), 0 0 16px hsl(var(--gold) / 0.4);
+  }
+
+  .bulb-off {
+    background: hsl(0 0% 12%);
+    box-shadow: inset 0 1px 2px hsl(0 0% 0% / 0.5);
+  }
+
+  .bulb-on-red {
+    background: hsl(var(--led-red-on));
+    box-shadow: 0 0 8px hsl(var(--led-red-on)), 0 0 16px hsl(var(--led-red-on) / 0.4);
+  }
+
+  .bulb-on-green {
+    background: hsl(var(--led-green-on));
+    box-shadow: 0 0 8px hsl(var(--led-green-on)), 0 0 16px hsl(var(--led-green-on) / 0.4);
+  }
+
+  /* Card hover glow */
+  .card-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--cardinal) / 0.15), 0 4px 12px hsl(0 0% 0% / 0.3);
+  }
+
+  /* Gold gradient text */
+  .text-gold-gradient {
+    background: linear-gradient(135deg, hsl(43 100% 55%) 0%, hsl(46 100% 50%) 50%, hsl(40 90% 45%) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Cardinal gradient background */
+  .bg-cardinal-gradient {
+    background: linear-gradient(135deg, hsl(0 100% 25%) 0%, hsl(0 85% 35%) 100%);
   }
 }
 
@@ -62,14 +149,12 @@
     page-break-before: always;
   }
 
-  /* Reset card styles for print */
   [data-slot="card"] {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
     break-inside: avoid;
   }
 
-  /* Fielding grid - ensure it prints well */
   table {
     border-collapse: collapse;
     width: 100%;
