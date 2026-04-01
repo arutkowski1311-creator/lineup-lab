@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 import type { GameData, GameStatus } from "@/lib/types";
 
 function statusVariant(status: GameStatus) {
@@ -33,14 +33,7 @@ function statusLabel(status: GameStatus) {
 }
 
 function gameHref(game: GameData) {
-  switch (game.gameStatus) {
-    case "live":
-      return `/games/${game.id}/live`;
-    case "scheduled":
-      return `/games/${game.id}/lineup`;
-    default:
-      return `/games/${game.id}/lineup`;
-  }
+  return `/games/${game.id}/hub`;
 }
 
 export default function GamesPage() {
@@ -90,9 +83,21 @@ export default function GamesPage() {
               <Card className="transition-shadow hover:shadow-md active:shadow-sm">
                 <CardContent className="flex items-center gap-4 py-2">
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">
-                      vs {game.opponentName}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold truncate">
+                        vs {game.opponentName}
+                      </p>
+                      {game.homeOrAway && (
+                        <span className={cn(
+                          "inline-flex items-center justify-center size-5 rounded text-[10px] font-bold shrink-0",
+                          game.homeOrAway === "home"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-orange-100 text-orange-700"
+                        )}>
+                          {game.homeOrAway === "home" ? "H" : "A"}
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">
                       {formatDate(game.gameDate)}
                     </p>

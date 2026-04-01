@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, PlusCircle, Calendar, PlayCircle } from "lucide-react";
+import { Users, PlusCircle, Calendar, PlayCircle, LogIn } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { GameData } from "@/lib/types";
@@ -10,8 +10,17 @@ import type { GameData } from "@/lib/types";
 export default function DashboardPage() {
   const [activeGame, setActiveGame] = useState<GameData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
 
   useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => {
+        if (res.status === 401) {
+          setIsLoggedIn(false);
+        }
+      })
+      .catch(() => setIsLoggedIn(false));
+
     fetch("/api/games")
       .then((res) => res.json())
       .then((games: GameData[]) => {
@@ -31,8 +40,26 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold tracking-tight">Lineup Lab</h1>
       </header>
 
+      {!isLoggedIn && (
+        <Link href="/auth/login">
+          <Card className="border-primary/30 bg-primary/5">
+            <CardContent className="flex items-center gap-4 py-2">
+              <div className="size-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <LogIn className="size-6 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold">Sign In</p>
+                <p className="text-sm text-muted-foreground">
+                  Sign in to save your teams and game data
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      )}
+
       {!loading && activeGame && (
-        <Link href={`/games/${activeGame.id}/live`}>
+        <Link href={`/games/${activeGame.id}/hub`}>
           <Card className="border-green-500/50 bg-green-500/5">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-green-700">
