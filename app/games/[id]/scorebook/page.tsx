@@ -249,86 +249,73 @@ export default function ScorebookPage() {
             variant="ghost"
             size="icon"
             onClick={() => setShowInPlayFlow(false)}
+            className="text-white/70 hover:text-white hover:bg-white/10"
           >
             <ArrowLeft className="size-5" />
           </Button>
-          <h1 className="text-lg font-bold">Ball In Play</h1>
+          <h1 className="text-lg font-bold text-gold-gradient">Ball In Play</h1>
         </header>
 
         {inPlayStep === "contact" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Contact Type</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {CONTACT_TYPES.map((ct) => (
-                  <Button
-                    key={ct.value}
-                    variant="outline"
-                    className="h-14 text-sm"
-                    onClick={() => handleContactSelect(ct.value)}
-                  >
-                    {ct.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-white/10 bg-[hsl(0_0%_10%)] p-4 shadow-lg">
+            <h2 className="text-sm font-semibold text-gold-gradient mb-3">Contact Type</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {CONTACT_TYPES.map((ct) => (
+                <button
+                  key={ct.value}
+                  className={cn(
+                    "h-14 text-sm font-semibold rounded-lg border-2 transition-all",
+                    selectedContact === ct.value
+                      ? "border-[hsl(46_100%_50%)] bg-[hsl(46_100%_50%/0.15)] text-[hsl(46_100%_50%)]"
+                      : "border-white/10 bg-[hsl(0_0%_12%)] text-white/80 hover:border-[hsl(46_100%_50%/0.4)] hover:text-white"
+                  )}
+                  onClick={() => handleContactSelect(ct.value)}
+                >
+                  {ct.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {inPlayStep === "position" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">
-                Fielded By
-                <span className="ml-2 text-xs text-muted-foreground font-normal">
-                  ({selectedContact?.replace(/_/g, " ")})
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-2">
-                {FIELDER_POSITIONS.map((pos) => (
-                  <Button
-                    key={pos.value}
-                    variant="outline"
-                    className="h-14 text-sm font-bold"
-                    onClick={() => handlePositionSelect(pos.value)}
-                  >
-                    {pos.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-white/10 bg-[hsl(0_0%_10%)] p-4 shadow-lg">
+            <h2 className="text-sm font-semibold text-gold-gradient mb-1">Fielded By</h2>
+            <p className="text-xs text-white/50 mb-3">
+              {selectedContact?.replace(/_/g, " ")}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {FIELDER_POSITIONS.map((pos) => (
+                <button
+                  key={pos.value}
+                  className="h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_12%)] text-[hsl(46_100%_50%)] hover:border-[hsl(46_100%_50%/0.4)] hover:bg-[hsl(0_0%_14%)] transition-all"
+                  onClick={() => handlePositionSelect(pos.value)}
+                >
+                  {pos.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {inPlayStep === "result" && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">
-                Result
-                <span className="ml-2 text-xs text-muted-foreground font-normal">
-                  {selectedContact?.replace(/_/g, " ")} to {selectedPosition}
-                </span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-2">
-                {PLAY_RESULTS.map((pr) => (
-                  <Button
-                    key={pr.value}
-                    variant="outline"
-                    className="h-14 text-sm"
-                    onClick={() => handlePlayResult(pr.value)}
-                  >
-                    {pr.label}
-                  </Button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-white/10 bg-[hsl(0_0%_10%)] p-4 shadow-lg">
+            <h2 className="text-sm font-semibold text-gold-gradient mb-1">Result</h2>
+            <p className="text-xs text-white/50 mb-3">
+              {selectedContact?.replace(/_/g, " ")} to {selectedPosition}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              {PLAY_RESULTS.map((pr) => (
+                <button
+                  key={pr.value}
+                  className="h-14 text-sm font-semibold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_12%)] text-white/80 hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all"
+                  onClick={() => handlePlayResult(pr.value)}
+                >
+                  {pr.label}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
       </div>
     );
@@ -339,17 +326,22 @@ export default function ScorebookPage() {
       {/* Top Bar */}
       <header className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={() => router.push(`/games/${gameId}/hub`)}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => router.push(`/games/${gameId}/hub`)}
+            className="text-white/70 hover:text-white hover:bg-white/10"
+          >
             <ArrowLeft className="size-5" />
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
+              <span className="inline-flex items-center rounded-md border border-[hsl(46_100%_50%/0.3)] bg-[hsl(46_100%_50%/0.1)] px-2 py-0.5 text-xs font-semibold text-[hsl(46_100%_50%)]">
                 {game.currentHalf === "top" ? "Top" : "Bot"} {game.currentInning}
-              </Badge>
+              </span>
               <OutTracker outs={game.currentOuts} />
             </div>
-            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-3 mt-1 text-xs text-white/50">
               <span>
                 Count: {balls}-{strikes}
               </span>
@@ -368,225 +360,274 @@ export default function ScorebookPage() {
       </header>
 
       {/* Current At-Bat */}
-      <Card>
-        <CardContent className="py-3">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Batter</p>
-              <p className="font-bold">
-                {currentBatter
-                  ? playerFullName(currentBatter.firstName, currentBatter.lastName)
-                  : "---"}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Pitcher</p>
-              <p className="font-medium text-sm">
-                {currentPitcher
-                  ? playerFullName(currentPitcher.firstName, currentPitcher.lastName)
-                  : "---"}
-              </p>
-            </div>
+      <div className="scoreboard-panel rounded-xl border border-white/10 bg-[hsl(0_0%_10%)] p-4 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-xs text-white/50 uppercase tracking-wide">Batter</p>
+            <p className="font-bold text-[hsl(46_100%_50%)] text-lg">
+              {currentBatter
+                ? playerFullName(currentBatter.firstName, currentBatter.lastName)
+                : "---"}
+            </p>
           </div>
-          {/* Count display */}
-          <div className="flex items-center gap-4 mt-3">
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-muted-foreground w-4">B</span>
-              {[1, 2, 3, 4].map((n) => (
-                <div
-                  key={n}
-                  className={cn(
-                    "size-4 rounded-full border-2",
-                    n <= balls ? "bg-green-500 border-green-500" : "border-muted-foreground/30"
-                  )}
-                />
-              ))}
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-muted-foreground w-4">S</span>
-              {[1, 2, 3].map((n) => (
-                <div
-                  key={n}
-                  className={cn(
-                    "size-4 rounded-full border-2",
-                    n <= strikes ? "bg-red-500 border-red-500" : "border-muted-foreground/30"
-                  )}
-                />
-              ))}
-            </div>
+          <div className="text-right">
+            <p className="text-xs text-white/50 uppercase tracking-wide">Pitcher</p>
+            <p className="font-medium text-sm text-white/80">
+              {currentPitcher
+                ? playerFullName(currentPitcher.firstName, currentPitcher.lastName)
+                : "---"}
+            </p>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        {/* Count display using bulb system */}
+        <div className="flex items-center gap-6 mt-4">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-white/50 w-4">B</span>
+            {[1, 2, 3, 4].map((n) => (
+              <div
+                key={n}
+                className={cn(
+                  "size-5 rounded-full",
+                  n <= balls ? "bulb bulb-on-green" : "bulb bulb-off"
+                )}
+              />
+            ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-white/50 w-4">S</span>
+            {[1, 2, 3].map((n) => (
+              <div
+                key={n}
+                className={cn(
+                  "size-5 rounded-full",
+                  n <= strikes ? "bulb bulb-on-red" : "bulb bulb-off"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Quick Action Buttons */}
       <div className="flex flex-col gap-2">
         {/* Row 1: Ball, Strike, Foul */}
         <div className="grid grid-cols-3 gap-2">
-          <Button
-            className="h-14 text-base font-bold bg-green-600 hover:bg-green-700 text-white"
+          <button
+            className={cn(
+              "h-14 text-base font-bold rounded-lg border-2 transition-all",
+              "border-green-500/30 bg-[hsl(0_0%_10%)] text-green-400",
+              "hover:bg-green-500/10 hover:border-green-500/60",
+              "active:bg-green-500/20",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordPitch("ball")}
             disabled={actionLoading}
           >
             Ball
-          </Button>
-          <Button
-            className="h-14 text-base font-bold bg-red-600 hover:bg-red-700 text-white"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-base font-bold rounded-lg border-2 transition-all",
+              "border-red-500/30 bg-[hsl(0_0%_10%)] text-red-400",
+              "hover:bg-red-500/10 hover:border-red-500/60",
+              "active:bg-red-500/20",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordPitch("strike_swinging")}
             disabled={actionLoading}
           >
             Strike
-          </Button>
-          <Button
-            className="h-14 text-base font-bold bg-yellow-600 hover:bg-yellow-700 text-white"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-base font-bold rounded-lg border-2 transition-all",
+              "border-[hsl(46_100%_50%/0.3)] bg-[hsl(0_0%_10%)] text-[hsl(46_100%_50%)]",
+              "hover:bg-[hsl(46_100%_50%/0.1)] hover:border-[hsl(46_100%_50%/0.6)]",
+              "active:bg-[hsl(46_100%_50%/0.2)]",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordPitch("foul")}
             disabled={actionLoading}
           >
             Foul
-          </Button>
+          </button>
         </div>
 
         {/* Row 2: Single, Double, Triple, HR */}
         <div className="grid grid-cols-4 gap-2">
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("single")}
             disabled={actionLoading}
           >
             1B
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("double")}
             disabled={actionLoading}
           >
             2B
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("triple")}
             disabled={actionLoading}
           >
             3B
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold border-purple-300 text-purple-700 hover:bg-purple-50"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-[hsl(46_100%_50%/0.3)] bg-[hsl(0_0%_10%)] text-[hsl(46_100%_50%)]",
+              "hover:border-[hsl(46_100%_50%/0.6)] hover:bg-[hsl(46_100%_50%/0.1)] transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("homerun")}
             disabled={actionLoading}
           >
             HR
-          </Button>
+          </button>
         </div>
 
         {/* Row 3: Walk, Strikeout, HBP */}
         <div className="grid grid-cols-3 gap-2">
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("walk")}
             disabled={actionLoading}
           >
             Walk
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("strikeout")}
             disabled={actionLoading}
           >
             K
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("hbp")}
             disabled={actionLoading}
           >
             HBP
-          </Button>
+          </button>
         </div>
 
         {/* Row 4: Error, FC, Out, In Play */}
         <div className="grid grid-cols-4 gap-2">
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("reached_on_error")}
             disabled={actionLoading}
           >
             Error
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("fc")}
             disabled={actionLoading}
           >
             FC
-          </Button>
-          <Button
-            variant="outline"
-            className="h-14 text-sm font-bold"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg border-2 border-white/10 bg-[hsl(0_0%_10%)] text-white/80",
+              "hover:border-[hsl(46_100%_50%/0.4)] hover:text-white transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={() => recordResult("ground_out")}
             disabled={actionLoading}
           >
             Out
-          </Button>
-          <Button
-            className="h-14 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white"
+          </button>
+          <button
+            className={cn(
+              "h-14 text-sm font-bold rounded-lg bg-cardinal-gradient text-white",
+              "hover:opacity-90 transition-all",
+              actionLoading && "opacity-50 pointer-events-none"
+            )}
             onClick={handleInPlay}
             disabled={actionLoading}
           >
             In Play
-          </Button>
+          </button>
         </div>
 
         {/* Row 5: Undo */}
-        <Button
-          variant="ghost"
-          className="h-11"
+        <button
+          className={cn(
+            "h-11 flex items-center justify-center gap-2 rounded-lg bg-cardinal-gradient text-white font-semibold",
+            "hover:opacity-90 transition-all",
+            actionLoading && "opacity-50 pointer-events-none"
+          )}
           onClick={handleUndo}
           disabled={actionLoading}
         >
-          <Undo2 className="size-4 mr-2" />
+          <Undo2 className="size-4" />
           Undo
-        </Button>
+        </button>
       </div>
 
       {/* Pitch Log */}
       {pitches.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Pitch Log</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
-              {pitches.map((pitch, i) => {
-                let color = "bg-muted text-muted-foreground";
-                if (pitch.pitchResult === "ball") color = "bg-green-100 text-green-800";
-                if (pitch.pitchResult === "strike_called" || pitch.pitchResult === "strike_swinging")
-                  color = "bg-red-100 text-red-800";
-                if (pitch.pitchResult === "foul") color = "bg-yellow-100 text-yellow-800";
-                if (pitch.pitchResult === "in_play") color = "bg-blue-100 text-blue-800";
+        <div className="scoreboard-panel rounded-xl border border-white/10 bg-[hsl(0_0%_10%)] p-4 shadow-lg">
+          <h2 className="text-sm font-semibold text-gold-gradient mb-3">Pitch Log</h2>
+          <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+            {pitches.map((pitch, i) => {
+              let color = "bg-white/10 text-white/60";
+              if (pitch.pitchResult === "ball") color = "bg-green-500/20 text-green-400";
+              if (pitch.pitchResult === "strike_called" || pitch.pitchResult === "strike_swinging")
+                color = "bg-red-500/20 text-red-400";
+              if (pitch.pitchResult === "foul") color = "bg-[hsl(46_100%_50%/0.2)] text-[hsl(46_100%_50%)]";
+              if (pitch.pitchResult === "in_play") color = "bg-blue-500/20 text-blue-400";
 
-                return (
-                  <span
-                    key={pitch.id}
-                    className={cn(
-                      "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
-                      color
-                    )}
-                  >
-                    {i + 1}. {pitch.pitchResult.replace(/_/g, " ")}
-                  </span>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+              return (
+                <span
+                  key={pitch.id}
+                  className={cn(
+                    "inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium",
+                    color
+                  )}
+                >
+                  {i + 1}. {pitch.pitchResult.replace(/_/g, " ")}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );

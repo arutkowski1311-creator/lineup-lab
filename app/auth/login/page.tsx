@@ -2,9 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
 import { PlayCircle } from "lucide-react";
 
 export default function LoginPage() {
@@ -40,54 +38,73 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8">
+    <div className="flex flex-col items-center justify-center min-h-screen px-4 py-8 bg-[hsl(0_0%_7%)]">
       <div className="w-full max-w-sm flex flex-col gap-6">
-        <div className="flex flex-col items-center gap-2">
-          <div className="size-14 rounded-xl bg-primary flex items-center justify-center">
-            <PlayCircle className="size-8 text-primary-foreground" />
+        {/* Branding */}
+        <div className="flex flex-col items-center gap-3">
+          <div className="size-16 rounded-2xl bg-cardinal-gradient flex items-center justify-center shadow-lg shadow-red-900/20">
+            <PlayCircle className="size-9 text-white" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Lineup Lab</h1>
-          <p className="text-sm text-muted-foreground">Sign in to your account</p>
+          <h1 className="text-3xl font-bold tracking-tight text-gold-gradient">
+            Lineup Lab
+          </h1>
+          <p className="text-sm text-neutral-400">Sign in to your account</p>
         </div>
 
-        <Card>
-          <CardContent className="pt-6">
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Email</label>
-                <Input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="coach@example.com"
-                  required
-                />
-              </div>
+        {/* Card */}
+        <div className="card-glow rounded-xl border border-white/[0.08] bg-[hsl(0_0%_10%)] p-6">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-neutral-300">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="coach@example.com"
+                required
+                className="h-10 w-full rounded-lg border border-white/[0.08] bg-[hsl(0_0%_13%)] px-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[hsl(46_100%_50%)]/40 focus:border-[hsl(46_100%_50%)]/50 transition-colors"
+              />
+            </div>
 
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium">Password</label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-neutral-300">
+                Password
+              </label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
+                required
+                className="h-10 w-full rounded-lg border border-white/[0.08] bg-[hsl(0_0%_13%)] px-3 text-sm text-white placeholder:text-neutral-500 focus:outline-none focus:ring-2 focus:ring-[hsl(46_100%_50%)]/40 focus:border-[hsl(46_100%_50%)]/50 transition-colors"
+              />
+            </div>
 
-              {error && (
-                <p className="text-sm text-destructive">{error}</p>
-              )}
+            {error && (
+              <p className="text-sm text-red-400">{error}</p>
+            )}
 
-              <Button type="submit" disabled={submitting} className="w-full h-11">
-                {submitting ? "Signing in..." : "Sign In"}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="w-full h-11 rounded-lg bg-cardinal-gradient text-white font-semibold text-sm transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-900/25"
+            >
+              {submitting ? "Signing in..." : "Sign In"}
+            </button>
+          </form>
+        </div>
 
-        <p className="text-center text-sm text-muted-foreground">
-          Need an account? Ask your coach or team manager for an invite link.
+        <p className="text-center text-sm text-neutral-400">
+          Need an account?{" "}
+          <Link
+            href="/auth/signup"
+            className="text-[hsl(46_100%_50%)] font-medium hover:underline"
+          >
+            Sign up
+          </Link>{" "}
+          or ask your coach for an invite link.
         </p>
       </div>
     </div>

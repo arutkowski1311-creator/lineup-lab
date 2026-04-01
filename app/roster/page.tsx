@@ -151,24 +151,24 @@ export default function RosterPage() {
   return (
     <div className="flex flex-col gap-4 px-4 py-6 max-w-lg mx-auto">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Roster</h1>
+        <h1 className="text-2xl font-extrabold tracking-tight text-gold-gradient">Roster</h1>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" render={<Link href="/roster/import" />}>
+          <Button size="sm" className="bg-cardinal-gradient border-cardinal-bright/30 text-white hover:opacity-90" render={<Link href="/roster/import" />}>
             <Upload className="size-4 mr-1" />
             Import
           </Button>
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger
               render={
-                <Button size="sm">
+                <Button size="sm" className="bg-cardinal-gradient border-cardinal-bright/30 text-white hover:opacity-90">
                   <Plus className="size-4 mr-1" />
                   Add
                 </Button>
               }
             />
-            <DialogContent>
+            <DialogContent className="bg-[hsl(0_0%_10%)] border-gold/20 text-white">
               <DialogHeader>
-                <DialogTitle>Add Player</DialogTitle>
+                <DialogTitle className="text-gold-gradient">Add Player</DialogTitle>
               </DialogHeader>
               <div className="flex flex-col gap-3">
                 <div>
@@ -203,7 +203,7 @@ export default function RosterPage() {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={addPlayer} disabled={saving} className="w-full">
+                <Button onClick={addPlayer} disabled={saving} className="w-full bg-cardinal-gradient border-cardinal-bright/30 text-white hover:opacity-90">
                   {saving ? "Adding..." : "Add Player"}
                 </Button>
               </DialogFooter>
@@ -216,8 +216,9 @@ export default function RosterPage() {
         <EmptyState
           title="No players yet"
           description="Import your roster from a spreadsheet or add players one at a time."
+          className="text-gold/70 [&_h3]:text-gold [&_p]:text-gold/60"
           action={
-            <Button render={<Link href="/roster/import" />}>
+            <Button className="bg-cardinal-gradient border-cardinal-bright/30 text-white hover:opacity-90" render={<Link href="/roster/import" />}>
               Import Roster
             </Button>
           }
@@ -236,9 +237,9 @@ export default function RosterPage() {
       )}
 
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
-        <SheetContent side="right">
+        <SheetContent side="right" className="bg-[hsl(0_0%_10%)] border-gold/20 text-white">
           <SheetHeader>
-            <SheetTitle>Edit Player</SheetTitle>
+            <SheetTitle className="text-gold-gradient">Edit Player</SheetTitle>
           </SheetHeader>
           <div className="flex flex-col gap-4 overflow-y-auto flex-1 px-4">
             <div>
@@ -291,7 +292,7 @@ export default function RosterPage() {
             />
           </div>
           <SheetFooter>
-            <Button onClick={saveEdit} disabled={saving} className="w-full">
+            <Button onClick={saveEdit} disabled={saving} className="w-full bg-cardinal-gradient border-cardinal-bright/30 text-white hover:opacity-90">
               {saving ? "Saving..." : "Save Changes"}
             </Button>
             <Button

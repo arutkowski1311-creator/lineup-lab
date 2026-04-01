@@ -17,11 +17,11 @@ export function OutTracker({ outs, size = "sm" }: OutTrackerProps) {
         <div
           key={n}
           className={cn(
-            "rounded-full border-2 transition-colors",
+            "rounded-full transition-all",
             dotSize,
             n <= outs
-              ? "bg-red-500 border-red-500"
-              : "bg-transparent border-muted-foreground/40"
+              ? "bulb bulb-on-red"
+              : "bulb bulb-off"
           )}
         />
       ))}
