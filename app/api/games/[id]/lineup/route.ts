@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
+}
 
 export async function GET(
   _request: Request,
@@ -9,9 +17,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const teamId = await getTeamId();
 
     const game = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!game) {
@@ -55,9 +64,10 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const { battingOrder, fieldingAssignments, lineupLocked } = body;
+    const teamId = await getTeamId();
 
     const game = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!game) {

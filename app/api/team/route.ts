@@ -1,19 +1,26 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
-
-async function ensureTeam() {
-  return prisma.team.upsert({
-    where: { id: TEAM_ID },
-    create: { id: TEAM_ID, name: "My Team" },
-    update: {},
-  });
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
 }
 
 export async function GET() {
   try {
-    const team = await ensureTeam();
+    const teamId = await getTeamId();
+
+    const team = await prisma.team.upsert({
+      where: { id: teamId },
+      create: { id: teamId, name: "My Team" },
+      update: {},
+    });
+
     return NextResponse.json(team);
   } catch (error) {
     console.error("Failed to get team:", error);
@@ -36,10 +43,16 @@ export async function PUT(request: Request) {
       );
     }
 
-    await ensureTeam();
+    const teamId = await getTeamId();
+
+    await prisma.team.upsert({
+      where: { id: teamId },
+      create: { id: teamId, name: "My Team" },
+      update: {},
+    });
 
     const team = await prisma.team.update({
-      where: { id: TEAM_ID },
+      where: { id: teamId },
       data: { name: name.trim() },
     });
 

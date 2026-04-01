@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
-
-async function ensureTeam() {
-  return prisma.team.upsert({
-    where: { id: TEAM_ID },
-    create: { id: TEAM_ID, name: "My Team" },
-    update: {},
-  });
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
 }
 
 export async function POST(request: Request) {
@@ -33,13 +33,13 @@ export async function POST(request: Request) {
       }
     }
 
-    await ensureTeam();
+    const teamId = await getTeamId();
 
     const created = await prisma.$transaction(
       players.map((p: { firstName: string; lastName: string; dob: string }) =>
         prisma.player.create({
           data: {
-            teamId: TEAM_ID,
+            teamId,
             firstName: p.firstName.trim(),
             lastName: p.lastName.trim(),
             dob: new Date(p.dob),

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import bcrypt from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -6,14 +7,45 @@ async function main() {
   // Create default team
   const team = await prisma.team.upsert({
     where: { id: "default-team" },
-    update: {},
+    update: { slug: "thunder" },
     create: {
       id: "default-team",
       name: "Thunder",
+      slug: "thunder",
+      sport: "softball",
+      seasonLabel: "Spring 2026",
     },
   });
 
   console.log("Created team:", team.name);
+
+  // Create a demo user (coach)
+  const hashedPassword = await bcrypt.hash("password123", 10);
+  const user = await prisma.user.upsert({
+    where: { email: "coach@thunder.com" },
+    update: {},
+    create: {
+      id: "demo-coach",
+      email: "coach@thunder.com",
+      name: "Coach Demo",
+      password: hashedPassword,
+    },
+  });
+
+  // Create team membership
+  await prisma.teamMembership.upsert({
+    where: { id: "demo-membership" },
+    update: {},
+    create: {
+      id: "demo-membership",
+      teamId: team.id,
+      userId: user.id,
+      role: "head_coach",
+      status: "active",
+    },
+  });
+
+  console.log("Created demo user:", user.email);
 
   // Create roster of 14 players (typical youth softball)
   const players = [
@@ -59,8 +91,12 @@ async function main() {
       teamId: team.id,
       opponentName: "Lightning",
       gameDate: new Date("2026-03-25"),
+      homeOrAway: "home",
+      venue: "Thunder Field",
+      defensiveFormat: "four_outfield",
       coachMode: "balanced",
       lineupLocked: true,
+      simpleModeEnabled: true,
       gameStatus: "final",
       currentInning: 6,
       currentHalf: "bottom",

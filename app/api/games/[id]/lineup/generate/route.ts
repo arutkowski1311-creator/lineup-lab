@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateFullLineup, buildEmptyHistory } from "@/lib/lineup-engine";
-import { Position, CoachMode, POSITIONS, INFIELD_POSITIONS } from "@/lib/types";
+import { Position, CoachMode, DefensiveFormat, POSITIONS, INFIELD_POSITIONS } from "@/lib/types";
 import type { PlayerHistory } from "@/lib/types";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
+}
 
 export async function POST(
   request: Request,
@@ -13,7 +21,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { playerIds, coachMode, lockedBatting, lockedFielding } = body;
+    const { playerIds, coachMode, defensiveFormat, lockedBatting, lockedFielding } = body;
 
     if (!Array.isArray(playerIds) || playerIds.length === 0) {
       return NextResponse.json(
@@ -29,8 +37,10 @@ export async function POST(
       );
     }
 
+    const teamId = await getTeamId();
+
     const game = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!game) {
@@ -44,7 +54,7 @@ export async function POST(
     const players = await prisma.player.findMany({
       where: {
         id: { in: playerIds },
-        teamId: TEAM_ID,
+        teamId,
         active: true,
       },
     });
@@ -67,7 +77,7 @@ export async function POST(
         where: {
           playerId: player.id,
           game: {
-            teamId: TEAM_ID,
+            teamId,
             gameStatus: "final",
             id: { not: id }, // exclude current game
           },
@@ -103,7 +113,7 @@ export async function POST(
         where: {
           playerId: player.id,
           game: {
-            teamId: TEAM_ID,
+            teamId,
             gameStatus: "final",
             id: { not: id },
           },
@@ -116,7 +126,7 @@ export async function POST(
         where: {
           playerId: player.id,
           game: {
-            teamId: TEAM_ID,
+            teamId,
             id: { not: id },
           },
         },
@@ -140,7 +150,7 @@ export async function POST(
       // Count consecutive games caught
       const recentGamesWithCatcher = await prisma.game.findMany({
         where: {
-          teamId: TEAM_ID,
+          teamId,
           gameStatus: "final",
           id: { not: id },
         },
@@ -187,6 +197,7 @@ export async function POST(
       playerData,
       new Date(game.gameDate),
       coachMode as CoachMode,
+      (defensiveFormat || "four_outfield") as DefensiveFormat,
       histories,
       lockedBatting,
       lockedFielding

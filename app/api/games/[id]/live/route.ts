@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
+}
 
 export async function GET(
   _request: Request,
@@ -9,9 +17,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const teamId = await getTeamId();
 
     const game = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
       include: {
         scoreByInning: {
           orderBy: [{ inningNumber: "asc" }, { half: "asc" }],
@@ -94,8 +103,12 @@ export async function PUT(
       );
     }
 
+    const teamId = await getTeamId();
+    const session = await getSession();
+    const createdByUserId = session?.userId || null;
+
     const game = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!game) {
@@ -141,11 +154,12 @@ export async function PUT(
         lastEvent.half
       );
 
+      const payloadData = lastEvent.payloadJson ? JSON.parse(lastEvent.payloadJson as string) : null;
+
       switch (lastEvent.eventType) {
         case "out": {
           // Undo an out - if we auto-advanced, we need to go back
-          const previousValue = lastEvent.value ? JSON.parse(lastEvent.value) : null;
-          if (previousValue?.autoAdvanced) {
+          if (payloadData?.autoAdvanced) {
             // Go back to the previous half-inning with 2 outs
             await prisma.game.update({
               where: { id },
@@ -191,14 +205,13 @@ export async function PUT(
           break;
         }
         case "next_half": {
-          const previousValue = lastEvent.value ? JSON.parse(lastEvent.value) : null;
-          if (previousValue) {
+          if (payloadData) {
             await prisma.game.update({
               where: { id },
               data: {
-                currentInning: previousValue.previousInning,
-                currentHalf: previousValue.previousHalf,
-                currentOuts: previousValue.previousOuts,
+                currentInning: payloadData.previousInning,
+                currentHalf: payloadData.previousHalf,
+                currentOuts: payloadData.previousOuts,
               },
             });
           }
@@ -281,7 +294,8 @@ export async function PUT(
             eventType: "out",
             inningNumber: game.currentInning,
             half: game.currentHalf,
-            value: JSON.stringify({ autoAdvanced }),
+            payloadJson: JSON.stringify({ autoAdvanced }),
+            createdByUserId,
           },
         });
         break;
@@ -319,6 +333,7 @@ export async function PUT(
             eventType: "run_us",
             inningNumber: currentInning,
             half: currentHalf,
+            createdByUserId,
           },
         });
         break;
@@ -337,6 +352,7 @@ export async function PUT(
               eventType: "sub_run_us",
               inningNumber: currentInning,
               half: currentHalf,
+              createdByUserId,
             },
           });
         }
@@ -360,6 +376,7 @@ export async function PUT(
             eventType: "run_opp",
             inningNumber: currentInning,
             half: currentHalf,
+            createdByUserId,
           },
         });
         break;
@@ -378,6 +395,7 @@ export async function PUT(
               eventType: "sub_run_opp",
               inningNumber: currentInning,
               half: currentHalf,
+              createdByUserId,
             },
           });
         }
@@ -414,7 +432,8 @@ export async function PUT(
             eventType: "next_half",
             inningNumber: previousInning,
             half: previousHalf,
-            value: JSON.stringify({ previousInning, previousHalf, previousOuts }),
+            payloadJson: JSON.stringify({ previousInning, previousHalf, previousOuts }),
+            createdByUserId,
           },
         });
         break;

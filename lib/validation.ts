@@ -1,25 +1,28 @@
 import {
   Position,
-  POSITIONS,
-  OUTFIELD_POSITIONS,
   INNINGS,
+  DefensiveFormat,
   BattingOrderEntry,
   FieldingAssignment,
   ValidationWarning,
+  getPositionsForFormat,
+  getOutfieldPositions,
 } from "./types";
 
 export function validateLineup(
   battingOrder: BattingOrderEntry[],
   fieldingAssignments: FieldingAssignment[],
-  playerIds: string[]
+  playerIds: string[],
+  defensiveFormat: DefensiveFormat = "four_outfield"
 ): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];
+  const positions = getPositionsForFormat(defensiveFormat);
+  const outfieldPositions = getOutfieldPositions(defensiveFormat);
 
   // ─── Batting Order Validation ────────────────────────────────────
   const battingPlayerIds = battingOrder.map((b) => b.playerId);
   const battingSet = new Set(battingPlayerIds);
 
-  // Every player must appear exactly once
   if (battingSet.size !== playerIds.length) {
     const missing = playerIds.filter((id) => !battingSet.has(id));
     const duplicate = battingPlayerIds.filter(
@@ -39,7 +42,6 @@ export function validateLineup(
     }
   }
 
-  // Check slot numbering
   const slots = battingOrder.map((b) => b.battingSlot).sort((a, b) => a - b);
   for (let i = 0; i < slots.length; i++) {
     if (slots[i] !== i + 1) {
@@ -57,11 +59,10 @@ export function validateLineup(
       (a) => a.inningNumber === inning && a.assignmentType === "planned"
     );
 
-    // Each inning must have exactly 10 positions
     const positionsUsed = new Set(inningAssignments.map((a) => a.position));
     const playersUsed = new Set(inningAssignments.map((a) => a.playerId));
 
-    for (const pos of POSITIONS) {
+    for (const pos of positions) {
       if (!positionsUsed.has(pos)) {
         warnings.push({
           type: "error",
@@ -72,7 +73,6 @@ export function validateLineup(
       }
     }
 
-    // No duplicate positions
     if (positionsUsed.size !== inningAssignments.length) {
       const posCounts = new Map<string, number>();
       for (const a of inningAssignments) {
@@ -90,7 +90,6 @@ export function validateLineup(
       }
     }
 
-    // No player in two positions same inning
     if (playersUsed.size !== inningAssignments.length) {
       const playerCounts = new Map<string, number>();
       for (const a of inningAssignments) {
@@ -113,7 +112,7 @@ export function validateLineup(
   const playerOutfieldInnings = new Map<string, number[]>();
 
   for (const a of fieldingAssignments.filter((a) => a.assignmentType === "planned")) {
-    if (OUTFIELD_POSITIONS.includes(a.position as Position)) {
+    if (outfieldPositions.includes(a.position as Position)) {
       if (!playerOutfieldInnings.has(a.playerId)) {
         playerOutfieldInnings.set(a.playerId, []);
       }

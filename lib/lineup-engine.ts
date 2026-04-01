@@ -1,15 +1,18 @@
 import {
   Position,
   POSITIONS,
-  OUTFIELD_POSITIONS,
   INNINGS,
   CoachMode,
+  DefensiveFormat,
   PlayerSuitability,
   PlayerHistory,
   BattingOrderEntry,
   FieldingAssignment,
   LineupData,
   PlayerData,
+  getPositionsForFormat,
+  getOutfieldPositions,
+  getInfieldPositions,
 } from "./types";
 import { playerAge } from "./utils";
 
@@ -47,8 +50,11 @@ function positionScore(suit: PlayerSuitability, pos: Position): number {
     case "3B": return suit.thirdBaseScore;
     case "SS": return suit.shortstopScore;
     case "2B": return suit.secondBaseScore;
-    case "LF": case "LC": case "RC": case "RF": return suit.outfieldScore;
-    default: return 0;
+    // All outfield positions use the same score
+    case "LF": case "LC": case "RC": case "RF":
+    case "CF": case "LCF": case "RCF":
+      return suit.outfieldScore;
+    default: return suit.outfieldScore;
   }
 }
 
@@ -62,7 +68,7 @@ interface ModeWeights {
 
 function getModeWeights(mode: CoachMode): ModeWeights {
   switch (mode) {
-    case "fairness": return { suitability: 0.3, fairness: 0.5, development: 0.2 };
+    case "development": return { suitability: 0.3, fairness: 0.5, development: 0.2 };
     case "balanced": return { suitability: 0.45, fairness: 0.35, development: 0.2 };
     case "win-now": return { suitability: 0.65, fairness: 0.2, development: 0.15 };
   }
@@ -72,10 +78,12 @@ function getModeWeights(mode: CoachMode): ModeWeights {
 
 interface FieldingContext {
   playerIds: string[];
+  positions: Position[];
+  outfieldPositions: Position[];
   suitabilities: Map<string, PlayerSuitability>;
   histories: Map<string, PlayerHistory>;
   mode: CoachMode;
-  lockedFielding: Map<string, { playerId: string }>; // key: "inning-position"
+  lockedFielding: Map<string, { playerId: string }>;
 }
 
 function makeFieldingKey(inning: number, position: Position): string {
@@ -84,12 +92,11 @@ function makeFieldingKey(inning: number, position: Position): string {
 
 export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[] {
   const weights = getModeWeights(ctx.mode);
-  const numPlayers = ctx.playerIds.length;
   const assignments: FieldingAssignment[] = [];
 
   // Track per-player outfield streaks and innings assigned
-  const outfieldStreak = new Map<string, number>(); // consecutive outfield innings
-  const inningsAssigned = new Map<string, number>();  // total innings on field
+  const outfieldStreak = new Map<string, number>();
+  const inningsAssigned = new Map<string, number>();
   ctx.playerIds.forEach((id) => {
     outfieldStreak.set(id, 0);
     inningsAssigned.set(id, 0);
@@ -103,7 +110,7 @@ export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[]
     const usedThisInning = new Set<string>();
 
     // 1. Apply locked assignments first
-    for (const pos of POSITIONS) {
+    for (const pos of ctx.positions) {
       const key = makeFieldingKey(inning, pos);
       const locked = ctx.lockedFielding.get(key);
       if (locked) {
@@ -121,12 +128,13 @@ export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[]
       }
     }
 
-    // 3. Assign priority positions: P, 1B, 3B
-    const priorityOrder: Position[] = ["P", "1B", "3B", "SS", "2B"];
-    for (const pos of priorityOrder) {
+    // 3. Assign priority infield positions: P, 1B, 3B, SS, 2B
+    const infieldOrder: Position[] = ["P", "1B", "3B", "SS", "2B"];
+    for (const pos of infieldOrder) {
+      if (!ctx.positions.includes(pos)) continue;
       if (assignedThisInning.has(pos)) continue;
       const best = pickBestForPosition(
-        pos, inning, ctx, usedThisInning, outfieldStreak, inningsAssigned, weights
+        pos, ctx, usedThisInning, outfieldStreak, inningsAssigned, weights
       );
       if (best) {
         assignedThisInning.set(pos, best);
@@ -135,11 +143,10 @@ export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[]
     }
 
     // 4. Assign outfield positions
-    const outfieldPositions: Position[] = ["LF", "LC", "RC", "RF"];
-    for (const pos of outfieldPositions) {
+    for (const pos of ctx.outfieldPositions) {
       if (assignedThisInning.has(pos)) continue;
       const best = pickBestForPosition(
-        pos, inning, ctx, usedThisInning, outfieldStreak, inningsAssigned, weights
+        pos, ctx, usedThisInning, outfieldStreak, inningsAssigned, weights
       );
       if (best) {
         assignedThisInning.set(pos, best);
@@ -147,8 +154,8 @@ export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[]
       }
     }
 
-    // If we still have empty spots, fill with remaining players
-    const emptyPositions = POSITIONS.filter((p) => !assignedThisInning.has(p));
+    // Fill remaining empty spots with remaining players
+    const emptyPositions = ctx.positions.filter((p) => !assignedThisInning.has(p));
     const remainingPlayers = ctx.playerIds.filter((id) => !usedThisInning.has(id));
 
     for (let i = 0; i < Math.min(emptyPositions.length, remainingPlayers.length); i++) {
@@ -161,7 +168,7 @@ export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[]
       const posForPlayer = [...assignedThisInning.entries()].find(
         ([_, pid]) => pid === playerId
       );
-      if (posForPlayer && OUTFIELD_POSITIONS.includes(posForPlayer[0] as Position)) {
+      if (posForPlayer && ctx.outfieldPositions.includes(posForPlayer[0] as Position)) {
         outfieldStreak.set(playerId, (outfieldStreak.get(playerId) || 0) + 1);
       } else {
         outfieldStreak.set(playerId, 0);
@@ -189,17 +196,15 @@ export function generateFieldingPlan(ctx: FieldingContext): FieldingAssignment[]
 
 function pickBestForPosition(
   position: Position,
-  inning: number,
   ctx: FieldingContext,
   usedThisInning: Set<string>,
   outfieldStreak: Map<string, number>,
   inningsAssigned: Map<string, number>,
   weights: ModeWeights
 ): string | null {
-  const isOutfield = OUTFIELD_POSITIONS.includes(position);
+  const isOutfield = ctx.outfieldPositions.includes(position);
   const candidates = ctx.playerIds.filter((id) => {
     if (usedThisInning.has(id)) return false;
-    // Enforce outfield streak rule: no more than 2 consecutive
     if (isOutfield && (outfieldStreak.get(id) || 0) >= 2) return false;
     return true;
   });
@@ -210,20 +215,15 @@ function pickBestForPosition(
     const suit = ctx.suitabilities.get(id)!;
     const hist = ctx.histories.get(id);
 
-    // Suitability score for this position
     const suitScore = positionScore(suit, position);
 
-    // Fairness: prefer players with fewer innings
     const totalInnings = inningsAssigned.get(id) || 0;
-    const maxPossible = 6;
-    const fairnessScore = 1 - totalInnings / maxPossible;
+    const fairnessScore = 1 - totalInnings / 6;
 
-    // Development: younger players get outfield bonus
     let devScore = 0;
     if (isOutfield && suit.ageOnGameDate < 10) devScore = 0.5;
     if (!isOutfield && suit.ageOnGameDate >= 10) devScore = 0.3;
 
-    // Historical position fairness
     let histScore = 0;
     if (hist) {
       const posCount = hist.positionCounts[position] || 0;
@@ -238,7 +238,7 @@ function pickBestForPosition(
       fairnessScore * weights.fairness * 2 +
       devScore * weights.development +
       histScore * weights.fairness +
-      Math.random() * 0.3; // small randomness for variety
+      Math.random() * 0.3;
 
     return { id, score: total };
   });
@@ -247,12 +247,9 @@ function pickBestForPosition(
   return scored[0]?.id ?? null;
 }
 
-function planCatcherBlocks(
-  ctx: FieldingContext
-): Map<number, string> {
+function planCatcherBlocks(ctx: FieldingContext): Map<number, string> {
   const plan = new Map<number, string>();
 
-  // Find top catcher candidates
   const catcherCandidates = ctx.playerIds
     .map((id) => ({
       id,
@@ -260,21 +257,17 @@ function planCatcherBlocks(
       hist: ctx.histories.get(id),
     }))
     .sort((a, b) => {
-      // Prefer players who haven't caught recently
       const aConsec = a.hist?.consecutiveGamesCaught ?? 0;
       const bConsec = b.hist?.consecutiveGamesCaught ?? 0;
       if (aConsec !== bConsec) return aConsec - bConsec;
-      // Then by total catcher innings (less = higher priority for rotation)
       const aTotal = a.hist?.totalCatcherInnings ?? 0;
       const bTotal = b.hist?.totalCatcherInnings ?? 0;
       if (aTotal !== bTotal) return aTotal - bTotal;
-      // Then by suitability
       return b.score - a.score;
     });
 
   if (catcherCandidates.length === 0) return plan;
 
-  // Check for locked catchers
   const lockedCatcherInnings = new Set<number>();
   for (const inning of INNINGS) {
     const key = makeFieldingKey(inning, "C");
@@ -285,12 +278,9 @@ function planCatcherBlocks(
     }
   }
 
-  // Assign catcher in 2-3 inning blocks for unlocked innings
   const unlockedInnings = INNINGS.filter((i) => !lockedCatcherInnings.has(i));
-
   if (unlockedInnings.length === 0) return plan;
 
-  // Split into blocks of 2-3
   const blockSizes = splitIntoBlocks(unlockedInnings.length);
   let inningIdx = 0;
   let catcherIdx = 0;
@@ -312,7 +302,6 @@ function splitIntoBlocks(total: number): number[] {
   if (total === 4) return [2, 2];
   if (total === 5) return [3, 2];
   if (total === 6) return [3, 3];
-  // fallback
   const blocks: number[] = [];
   let remaining = total;
   while (remaining > 0) {
@@ -332,7 +321,6 @@ export function generateBattingOrder(
   mode: CoachMode,
   lockedBatting?: { slot: number; playerId: string }[]
 ): BattingOrderEntry[] {
-  const weights = getModeWeights(mode);
   const lockedSlots = new Map<number, string>();
   const lockedPlayers = new Set<string>();
 
@@ -353,7 +341,6 @@ export function generateBattingOrder(
     }
   }
 
-  // Categorize players
   const strong: string[] = [];
   const medium: string[] = [];
   const weaker: string[] = [];
@@ -365,28 +352,17 @@ export function generateBattingOrder(
     else weaker.push(id);
   }
 
-  // Shuffle within tiers for variety
   shuffle(strong);
   shuffle(medium);
   shuffle(weaker);
 
-  // Apply history adjustments
-  const adjusted = adjustForHistory(
-    strong, medium, weaker, histories, unlockedSlotNumbers, totalSlots
-  );
-
-  // Build the interleaved order: spread strong, fill with medium, place weaker avoiding adjacency
+  const adjusted = adjustForHistory(strong, medium, weaker, histories, totalSlots);
   const orderedPlayers = interleave(adjusted.strong, adjusted.medium, adjusted.weaker);
 
-  // Assign to unlocked slots
   const result: BattingOrderEntry[] = [];
-
-  // First, add locked slots
   for (const [slot, playerId] of lockedSlots) {
     result.push({ battingSlot: slot, playerId });
   }
-
-  // Then assign unlocked
   for (let i = 0; i < Math.min(orderedPlayers.length, unlockedSlotNumbers.length); i++) {
     result.push({ battingSlot: unlockedSlotNumbers[i], playerId: orderedPlayers[i] });
   }
@@ -400,21 +376,13 @@ function adjustForHistory(
   medium: string[],
   weaker: string[],
   histories: Map<string, PlayerHistory>,
-  unlockedSlots: number[],
-  totalSlots: number
+  _totalSlots: number
 ): { strong: string[]; medium: string[]; weaker: string[] } {
-  const lastSlot = totalSlots;
-  const bottom3Start = totalSlots - 2;
-
-  // Players who were last or in bottom 3 should move up
   const moveUp: string[] = [];
-
   for (const id of [...weaker]) {
     const hist = histories.get(id);
     if (!hist) continue;
-
     if (hist.wasLastInOrder || hist.wasInBottom3) {
-      // Remove from weaker, add to moveUp
       const idx = weaker.indexOf(id);
       if (idx >= 0) {
         weaker.splice(idx, 1);
@@ -422,23 +390,15 @@ function adjustForHistory(
       }
     }
   }
-
-  // Put moveUp players into medium pool (they'll get better slots)
   medium.push(...moveUp);
   shuffle(medium);
-
   return { strong, medium, weaker };
 }
 
 function interleave(strong: string[], medium: string[], weaker: string[]): string[] {
-  const result: string[] = [];
   const all = [...strong, ...medium, ...weaker];
   const total = all.length;
-
-  if (total === 0) return result;
-
-  // Strategy: distribute strong hitters evenly, fill with medium, then weaker at end
-  // but avoid consecutive weaker hitters
+  if (total === 0) return [];
 
   const strongPositions: number[] = [];
   if (strong.length > 0) {
@@ -448,14 +408,11 @@ function interleave(strong: string[], medium: string[], weaker: string[]): strin
     }
   }
 
-  // Place strong hitters at their positions
   const placed = new Array<string | null>(total).fill(null);
   for (let i = 0; i < strong.length; i++) {
-    const pos = strongPositions[i];
-    placed[pos] = strong[i];
+    placed[strongPositions[i]] = strong[i];
   }
 
-  // Fill remaining slots, avoiding consecutive weaker hitters
   const remaining = [...medium, ...weaker];
   let rIdx = 0;
   for (let i = 0; i < total; i++) {
@@ -466,16 +423,10 @@ function interleave(strong: string[], medium: string[], weaker: string[]): strin
     }
   }
 
-  // Post-process: swap consecutive weaker hitters if possible
+  // Post-process: swap consecutive weaker hitters
   const weakerSet = new Set(weaker);
   for (let i = 0; i < total - 1; i++) {
-    if (
-      placed[i] &&
-      placed[i + 1] &&
-      weakerSet.has(placed[i]!) &&
-      weakerSet.has(placed[i + 1]!)
-    ) {
-      // Try to find a non-weaker to swap with
+    if (placed[i] && placed[i + 1] && weakerSet.has(placed[i]!) && weakerSet.has(placed[i + 1]!)) {
       for (let j = i + 2; j < total; j++) {
         if (placed[j] && !weakerSet.has(placed[j]!)) {
           [placed[i + 1], placed[j]] = [placed[j], placed[i + 1]];
@@ -501,18 +452,20 @@ export function generateFullLineup(
   players: PlayerData[],
   gameDate: Date,
   mode: CoachMode,
+  defensiveFormat: DefensiveFormat,
   histories: Map<string, PlayerHistory>,
   lockedBatting?: { slot: number; playerId: string }[],
   lockedFielding?: { inning: number; position: Position; playerId: string }[]
 ): LineupData {
   const playerIds = players.map((p) => p.id);
   const suitabilities = new Map<string, PlayerSuitability>();
-
   for (const p of players) {
     suitabilities.set(p.id, computeSuitability(p, gameDate));
   }
 
-  // Convert locked fielding to map
+  const positions = getPositionsForFormat(defensiveFormat);
+  const outfieldPositions = getOutfieldPositions(defensiveFormat);
+
   const lockedFieldingMap = new Map<string, { playerId: string }>();
   if (lockedFielding) {
     for (const { inning, position, playerId } of lockedFielding) {
@@ -522,6 +475,8 @@ export function generateFullLineup(
 
   const fieldingCtx: FieldingContext = {
     playerIds,
+    positions,
+    outfieldPositions,
     suitabilities,
     histories,
     mode,
@@ -529,9 +484,7 @@ export function generateFullLineup(
   };
 
   const fieldingAssignments = generateFieldingPlan(fieldingCtx);
-  const battingOrder = generateBattingOrder(
-    playerIds, suitabilities, histories, mode, lockedBatting
-  );
+  const battingOrder = generateBattingOrder(playerIds, suitabilities, histories, mode, lockedBatting);
 
   return { battingOrder, fieldingAssignments };
 }
@@ -539,17 +492,13 @@ export function generateFullLineup(
 // ─── History Helpers ──────────────────────────────────────────────────
 
 export function buildEmptyHistory(playerId: string): PlayerHistory {
-  const positionCounts: Record<Position, number> = {} as Record<Position, number>;
-  for (const pos of POSITIONS) {
-    positionCounts[pos] = 0;
-  }
   return {
     playerId,
     battingSlots: [],
     lastBattingSlot: null,
     wasLastInOrder: false,
     wasInBottom3: false,
-    positionCounts,
+    positionCounts: {},
     totalCatcherInnings: 0,
     consecutiveGamesCaught: 0,
     totalInfieldInnings: 0,

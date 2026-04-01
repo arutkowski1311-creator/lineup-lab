@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckSquare, Square } from "lucide-react";
+import { ArrowLeft, CheckSquare, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import type { PlayerData, CoachMode } from "@/lib/types";
+import type { PlayerData, CoachMode, DefensiveFormat, HomeOrAway } from "@/lib/types";
 import { playerFullName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +45,13 @@ export default function NewGamePage() {
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(
     new Set()
   );
+  const [homeOrAway, setHomeOrAway] = useState<HomeOrAway>("home");
+  const [venue, setVenue] = useState("");
+  const [defensiveFormat, setDefensiveFormat] = useState<DefensiveFormat>("standard");
+  const [simpleModeEnabled, setSimpleModeEnabled] = useState(true);
+  const [advancedModeEnabled, setAdvancedModeEnabled] = useState(false);
+  const [livestreamUrl, setLivestreamUrl] = useState("");
+  const [showLivestream, setShowLivestream] = useState(false);
 
   useEffect(() => {
     fetch("/api/players")
@@ -97,6 +104,12 @@ export default function NewGamePage() {
           coachMode,
           notes: notes || null,
           playerIds,
+          homeOrAway,
+          venue: venue || null,
+          defensiveFormat,
+          simpleModeEnabled,
+          advancedModeEnabled,
+          livestreamUrl: livestreamUrl || null,
         }),
       });
       if (!createRes.ok) {
@@ -127,7 +140,7 @@ export default function NewGamePage() {
       });
 
       toast.success("Game created with lineup!");
-      router.push(`/games/${game.id}/lineup`);
+      router.push(`/games/${game.id}/hub`);
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "Failed to create game");
     } finally {
@@ -170,6 +183,146 @@ export default function NewGamePage() {
           value={gameDate}
           onChange={(e) => setGameDate(e.target.value)}
         />
+      </div>
+
+      {/* Home/Away */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium">Home or Away</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setHomeOrAway("home")}
+            className={cn(
+              "flex items-center justify-center rounded-xl border-2 p-3 font-semibold text-base transition-colors",
+              homeOrAway === "home"
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border hover:border-primary/30"
+            )}
+          >
+            Home
+          </button>
+          <button
+            type="button"
+            onClick={() => setHomeOrAway("away")}
+            className={cn(
+              "flex items-center justify-center rounded-xl border-2 p-3 font-semibold text-base transition-colors",
+              homeOrAway === "away"
+                ? "border-primary bg-primary/5 text-primary"
+                : "border-border hover:border-primary/30"
+            )}
+          >
+            Away
+          </button>
+        </div>
+      </div>
+
+      {/* Venue */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-sm font-medium">Venue (optional)</label>
+        <Input
+          value={venue}
+          onChange={(e) => setVenue(e.target.value)}
+          placeholder="e.g. Central Park Field 3"
+        />
+      </div>
+
+      {/* Defensive Format */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium">Defensive Format</label>
+        <div className="grid gap-2">
+          {([
+            { value: "standard" as DefensiveFormat, title: "3 Outfielders (Standard)", description: "LF, CF, RF - standard defensive alignment" },
+            { value: "four_outfield" as DefensiveFormat, title: "4 Outfielders", description: "LF, LC, RC, RF - extra coverage in the outfield" },
+            { value: "five_outfield" as DefensiveFormat, title: "5 Outfielders", description: "LF, LCF, CF, RCF, RF - maximum outfield coverage" },
+          ]).map((fmt) => (
+            <button
+              key={fmt.value}
+              type="button"
+              onClick={() => setDefensiveFormat(fmt.value)}
+              className={cn(
+                "flex flex-col gap-1 rounded-xl border-2 p-4 text-left transition-colors",
+                defensiveFormat === fmt.value
+                  ? "border-primary bg-primary/5"
+                  : "border-border hover:border-primary/30"
+              )}
+            >
+              <p className="font-semibold">{fmt.title}</p>
+              <p className="text-sm text-muted-foreground">{fmt.description}</p>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Scoring Mode */}
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium">Scoring Mode</label>
+        <div className="flex flex-col gap-3">
+          <button
+            type="button"
+            onClick={() => setSimpleModeEnabled(!simpleModeEnabled)}
+            className="flex items-center justify-between rounded-xl border p-4"
+          >
+            <div className="text-left">
+              <p className="font-semibold">Simple</p>
+              <p className="text-sm text-muted-foreground">Track score, outs, and innings</p>
+            </div>
+            <div
+              className={cn(
+                "w-11 h-6 rounded-full transition-colors relative",
+                simpleModeEnabled ? "bg-primary" : "bg-muted"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
+                  simpleModeEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+                )}
+              />
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAdvancedModeEnabled(!advancedModeEnabled)}
+            className="flex items-center justify-between rounded-xl border p-4"
+          >
+            <div className="text-left">
+              <p className="font-semibold">Advanced Scorebook</p>
+              <p className="text-sm text-muted-foreground">Pitch-by-pitch tracking with full stats</p>
+            </div>
+            <div
+              className={cn(
+                "w-11 h-6 rounded-full transition-colors relative",
+                advancedModeEnabled ? "bg-primary" : "bg-muted"
+              )}
+            >
+              <div
+                className={cn(
+                  "absolute top-0.5 size-5 rounded-full bg-white shadow transition-transform",
+                  advancedModeEnabled ? "translate-x-[22px]" : "translate-x-0.5"
+                )}
+              />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Livestream URL */}
+      <div className="flex flex-col gap-1.5">
+        <button
+          type="button"
+          onClick={() => setShowLivestream(!showLivestream)}
+          className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showLivestream ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          Livestream URL (optional)
+        </button>
+        {showLivestream && (
+          <Input
+            value={livestreamUrl}
+            onChange={(e) => setLivestreamUrl(e.target.value)}
+            placeholder="https://youtube.com/live/..."
+          />
+        )}
       </div>
 
       {/* Notes */}

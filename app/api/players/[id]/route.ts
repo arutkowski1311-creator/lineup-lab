@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
+}
 
 export async function GET(
   _request: Request,
@@ -9,9 +17,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const teamId = await getTeamId();
 
     const player = await prisma.player.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!player) {
@@ -38,9 +47,10 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const teamId = await getTeamId();
 
     const existing = await prisma.player.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!existing) {
@@ -81,9 +91,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const teamId = await getTeamId();
 
     const existing = await prisma.player.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!existing) {

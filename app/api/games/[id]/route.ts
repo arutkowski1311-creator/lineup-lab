@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
+}
 
 export async function GET(
   _request: Request,
@@ -9,9 +17,10 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const teamId = await getTeamId();
 
     const game = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
       include: {
         battingOrder: {
           include: { player: true },
@@ -51,9 +60,10 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
+    const teamId = await getTeamId();
 
     const existing = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!existing) {
@@ -73,6 +83,12 @@ export async function PUT(
     if (body.currentInning !== undefined) data.currentInning = body.currentInning;
     if (body.currentHalf !== undefined) data.currentHalf = body.currentHalf;
     if (body.currentOuts !== undefined) data.currentOuts = body.currentOuts;
+    if (body.homeOrAway !== undefined) data.homeOrAway = body.homeOrAway;
+    if (body.venue !== undefined) data.venue = body.venue;
+    if (body.defensiveFormat !== undefined) data.defensiveFormat = body.defensiveFormat;
+    if (body.simpleModeEnabled !== undefined) data.simpleModeEnabled = body.simpleModeEnabled;
+    if (body.advancedModeEnabled !== undefined) data.advancedModeEnabled = body.advancedModeEnabled;
+    if (body.livestreamUrl !== undefined) data.livestreamUrl = body.livestreamUrl;
 
     const game = await prisma.game.update({
       where: { id },
@@ -95,9 +111,10 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const teamId = await getTeamId();
 
     const existing = await prisma.game.findFirst({
-      where: { id, teamId: TEAM_ID },
+      where: { id, teamId },
     });
 
     if (!existing) {

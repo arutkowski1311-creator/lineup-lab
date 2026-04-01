@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getSession, ensureUserTeam } from "@/lib/auth";
 
-const TEAM_ID = "default-team";
-
-async function ensureTeam() {
-  return prisma.team.upsert({
-    where: { id: TEAM_ID },
-    create: { id: TEAM_ID, name: "My Team" },
-    update: {},
-  });
+async function getTeamId(): Promise<string> {
+  const session = await getSession();
+  if (session) {
+    const membership = await ensureUserTeam(session.userId);
+    return membership.team.id;
+  }
+  return "default-team"; // fallback for unauthenticated access during MVP
 }
 
 export async function GET() {
   try {
-    await ensureTeam();
+    const teamId = await getTeamId();
 
     const games = await prisma.game.findMany({
-      where: { teamId: TEAM_ID },
+      where: { teamId },
       orderBy: { gameDate: "desc" },
       include: {
         _count: {
@@ -38,7 +38,19 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { opponentName, gameDate, coachMode, notes, playerIds } = body;
+    const {
+      opponentName,
+      gameDate,
+      coachMode,
+      notes,
+      playerIds,
+      homeOrAway,
+      venue,
+      defensiveFormat,
+      simpleModeEnabled,
+      advancedModeEnabled,
+      livestreamUrl,
+    } = body;
 
     if (!opponentName || !gameDate) {
       return NextResponse.json(
@@ -54,15 +66,21 @@ export async function POST(request: Request) {
       );
     }
 
-    await ensureTeam();
+    const teamId = await getTeamId();
 
     const game = await prisma.game.create({
       data: {
-        teamId: TEAM_ID,
+        teamId,
         opponentName: opponentName.trim(),
         gameDate: new Date(gameDate),
         coachMode: coachMode || "balanced",
         notes: notes || null,
+        homeOrAway: homeOrAway || null,
+        venue: venue || null,
+        defensiveFormat: defensiveFormat || null,
+        simpleModeEnabled: simpleModeEnabled ?? undefined,
+        advancedModeEnabled: advancedModeEnabled ?? undefined,
+        livestreamUrl: livestreamUrl || null,
       },
     });
 
