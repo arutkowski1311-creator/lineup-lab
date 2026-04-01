@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,17 +86,9 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        <div className="flex flex-col items-center gap-3 text-sm">
-          <p className="text-muted-foreground">
-            Don&apos;t have an account?{" "}
-            <Link href="/auth/signup" className="text-primary font-medium hover:underline">
-              Sign up
-            </Link>
-          </p>
-          <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
-            Continue without account
-          </Link>
-        </div>
+        <p className="text-center text-sm text-muted-foreground">
+          Need an account? Ask your coach or team manager for an invite link.
+        </p>
       </div>
     </div>
   );

@@ -40,6 +40,7 @@ model Team {
   players       Player[]
   games         Game[]
   memberships   TeamMembership[]
+  invites       Invite[]
   mediaItems    MediaItem[]
   notifications Notification[]
 }
@@ -58,6 +59,28 @@ model TeamMembership {
   @@unique([teamId, userId])
   @@index([teamId])
   @@index([userId])
+}
+
+model Invite {
+  id              String   @id @default(cuid())
+  teamId          String
+  email           String
+  role            String   @default("parent") // head_coach, assistant_coach, scorekeeper, parent
+  invitedByUserId String
+  linkedPlayerId  String?  // optional: link this invite to a specific player (for parent accounts)
+  token           String   @unique @default(cuid())
+  status          String   @default("pending") // pending, accepted, expired, revoked
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  acceptedUserId  String?  // the user who accepted
+  createdAt       DateTime @default(now())
+
+  team          Team    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  linkedPlayer  Player? @relation("InvitedForPlayer", fields: [linkedPlayerId], references: [id], onDelete: SetNull)
+
+  @@index([email])
+  @@index([token])
+  @@index([teamId])
 }
 
 // ─── Player Models ─────────────────────────────────────────────────────
@@ -92,6 +115,7 @@ model Player {
   awards              PlayerAward[]
   mediaItems          MediaItem[]             @relation("PlayerMedia")
   mediaTags           MediaTag[]
+  invitesForPlayer    Invite[]            @relation("InvitedForPlayer")
 
   @@index([teamId])
 }

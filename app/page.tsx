@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, PlusCircle, Calendar, PlayCircle, LogIn } from "lucide-react";
+import { Users, PlusCircle, Calendar, PlayCircle, LogIn, UserPlus } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import type { GameData } from "@/lib/types";
@@ -128,6 +128,24 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         </Link>
+
+        {isLoggedIn && (
+          <Link href="/team/invites">
+            <Card className="transition-shadow hover:shadow-md active:shadow-sm">
+              <CardContent className="flex items-center gap-4 py-2">
+                <div className="size-12 rounded-lg bg-orange-500/10 flex items-center justify-center shrink-0">
+                  <UserPlus className="size-6 text-orange-600" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold">Invite People</p>
+                  <p className="text-sm text-muted-foreground">
+                    Send invite links to parents and staff
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
     </div>
   );

@@ -53,19 +53,78 @@ export async function clearSession(): Promise<void> {
   cookieStore.delete(SESSION_COOKIE);
 }
 
-export async function signUp(email: string, password: string, name: string) {
+export async function signUp(email: string, password: string, name: string, inviteToken: string) {
+  // Validate invite token
+  const invite = await prisma.invite.findUnique({
+    where: { token: inviteToken },
+    include: { team: true },
+  });
+
+  if (!invite) {
+    throw new Error("Invalid invite link");
+  }
+  if (invite.status !== "pending") {
+    throw new Error("This invite has already been used or revoked");
+  }
+  if (invite.expiresAt < new Date()) {
+    await prisma.invite.update({ where: { id: invite.id }, data: { status: "expired" } });
+    throw new Error("This invite has expired");
+  }
+  if (invite.email.toLowerCase() !== email.toLowerCase()) {
+    throw new Error("Email does not match the invite");
+  }
+
   const existing = await prisma.user.findUnique({ where: { email } });
   if (existing) {
     throw new Error("Email already registered");
   }
 
   const hashedPassword = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: { email, password: hashedPassword, name },
+
+  // Create user, team membership, and mark invite accepted in a transaction
+  const user = await prisma.$transaction(async (tx) => {
+    const newUser = await tx.user.create({
+      data: { email, password: hashedPassword, name },
+    });
+
+    // Create team membership with the invited role
+    await tx.teamMembership.create({
+      data: {
+        teamId: invite.teamId,
+        userId: newUser.id,
+        role: invite.role,
+        status: "active",
+      },
+    });
+
+    // If linked to a player, create guardian relationship
+    if (invite.linkedPlayerId) {
+      await tx.guardian.create({
+        data: {
+          playerId: invite.linkedPlayerId,
+          userId: newUser.id,
+          name: name,
+          email: email,
+          relationship: "parent",
+        },
+      });
+    }
+
+    // Mark invite as accepted
+    await tx.invite.update({
+      where: { id: invite.id },
+      data: {
+        status: "accepted",
+        acceptedAt: new Date(),
+        acceptedUserId: newUser.id,
+      },
+    });
+
+    return newUser;
   });
 
   await createSession(user.id, user.email, user.name);
-  return { id: user.id, email: user.email, name: user.name };
+  return { id: user.id, email: user.email, name: user.name, teamName: invite.team.name };
 }
 
 export async function signIn(email: string, password: string) {
