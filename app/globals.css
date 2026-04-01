@@ -3,76 +3,88 @@
 @tailwind utilities;
 
 @layer base {
-  /* ─── Light theme (public pages, driver app, contractor portal) ─── */
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 35% 20%;
+    --background: 0 0% 100%;
+    --foreground: 220 20% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 215 35% 20%;
+    --card-foreground: 220 20% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 215 35% 20%;
-    --primary: 213 59% 26%;
+    --popover-foreground: 220 20% 14%;
+    --primary: 217 72% 40%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 210 60% 53%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 210 15% 95%;
-    --muted-foreground: 215 10% 45%;
-    --accent: 100 49% 47%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 220 20% 20%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 10% 46%;
+    --accent: 142 55% 40%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
-    --ring: 213 59% 26%;
-    --radius: 0.5rem;
-
-    /* Tippd custom tokens — Metro palette */
-    --tippd-navy: #1B3A6B;
-    --tippd-blue: #2E86DE;
-    --tippd-green: #6DB33F;
-    --tippd-ink: #0F1B2D;
-    --tippd-steel: #1E2A3E;
-    --tippd-charcoal: #142236;
-    --tippd-graphite: #2C3E56;
-    --tippd-ash: #5A6B7D;
-    --tippd-smoke: #8899AA;
-    --tippd-bone: #D6DEE6;
-    --tippd-cream: #F4F7FA;
-  }
-
-  /* ─── Dark theme (owner/manager dashboard) ─── */
-  .dark {
-    --background: 217 30% 8%;
-    --foreground: 210 15% 93%;
-    --card: 217 25% 12%;
-    --card-foreground: 210 15% 93%;
-    --popover: 217 25% 12%;
-    --popover-foreground: 210 15% 93%;
-    --primary: 210 60% 53%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 20% 18%;
-    --secondary-foreground: 210 15% 93%;
-    --muted: 217 20% 18%;
-    --muted-foreground: 210 10% 55%;
-    --accent: 100 49% 47%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 100% / 10%;
-    --input: 0 0% 100% / 15%;
-    --ring: 210 60% 53%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 217 72% 40%;
+    --radius: 0.625rem;
   }
 
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
   }
 }
 
+/* Mobile touch optimization */
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
+  .touch-target {
+    @apply min-h-[48px] min-w-[48px];
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-break {
+    page-break-before: always;
+  }
+
+  /* Reset card styles for print */
+  [data-slot="card"] {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    break-inside: avoid;
+  }
+
+  /* Fielding grid - ensure it prints well */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+
+  th, td {
+    border: 1px solid #333 !important;
+    padding: 4px 6px !important;
+    font-size: 10pt;
+  }
+
+  th {
+    background: #eee !important;
+    font-weight: bold;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

@@ -1,0 +1,121 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./softball.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Team {
+  id      String   @id @default(cuid())
+  name    String
+  players Player[]
+  games   Game[]
+}
+
+model Player {
+  id              String  @id @default(cuid())
+  teamId          String
+  firstName       String
+  lastName        String
+  dob             DateTime
+  fieldingOverall Int     @default(3)
+  catching        Int     @default(3)
+  throwing        Int     @default(3)
+  battingOverall  Int     @default(3)
+  active          Boolean @default(true)
+
+  team                Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  battingOrders       GameBattingOrder[]
+  fieldingAssignments GameFieldingAssignment[]
+
+  @@index([teamId])
+}
+
+model Game {
+  id                 String    @id @default(cuid())
+  teamId             String
+  opponentName       String
+  gameDate           DateTime
+  coachMode          String    @default("balanced")
+  lineupLocked       Boolean   @default(false)
+  gameStatus         String    @default("scheduled")
+  currentInning      Int       @default(1)
+  currentHalf        String    @default("top")
+  currentOuts        Int       @default(0)
+  finalTeamScore     Int?
+  finalOpponentScore Int?
+  notes              String?
+  finalizedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  team                Team                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  battingOrder        GameBattingOrder[]
+  fieldingAssignments GameFieldingAssignment[]
+  scoreByInning       GameScoreByInning[]
+  events              GameEvent[]
+
+  @@index([teamId])
+  @@index([gameDate])
+}
+
+model GameBattingOrder {
+  id         String @id @default(cuid())
+  gameId     String
+  battingSlot Int
+  playerId   String
+
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, battingSlot])
+  @@index([gameId])
+}
+
+model GameFieldingAssignment {
+  id             String @id @default(cuid())
+  gameId         String
+  inningNumber   Int
+  position       String
+  playerId       String
+  assignmentType String @default("planned")
+
+  game   Game   @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, inningNumber, position, assignmentType])
+  @@index([gameId])
+  @@index([playerId])
+}
+
+model GameScoreByInning {
+  id           String  @id @default(cuid())
+  gameId       String
+  inningNumber Int
+  half         String
+  usRuns       Int     @default(0)
+  opponentRuns Int     @default(0)
+  outsRecorded Int     @default(0)
+  completed    Boolean @default(false)
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@unique([gameId, inningNumber, half])
+  @@index([gameId])
+}
+
+model GameEvent {
+  id           String   @id @default(cuid())
+  gameId       String
+  eventType    String
+  inningNumber Int
+  half         String
+  value        String?
+  createdAt    DateTime @default(now())
+
+  game Game @relation(fields: [gameId], references: [id], onDelete: Cascade)
+
+  @@index([gameId])
+}

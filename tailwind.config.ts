@@ -43,18 +43,13 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        tippd: {
-          navy: "#1B3A6B",
-          blue: "#2E86DE",
-          green: "#6DB33F",
-          ink: "#0F1B2D",
-          steel: "#1E2A3E",
-          charcoal: "#142236",
-          graphite: "#2C3E56",
-          ash: "#5A6B7D",
-          smoke: "#8899AA",
-          bone: "#D6DEE6",
-          cream: "#F4F7FA",
+        softball: {
+          blue: "#1D5BA4",
+          navy: "#0F2D52",
+          green: "#2D8B4E",
+          red: "#C0392B",
+          gold: "#D4A017",
+          field: "#4A7C3F",
         },
       },
       borderRadius: {
@@ -63,21 +58,7 @@ const config: Config = {
         sm: "calc(var(--radius) - 4px)",
       },
       fontFamily: {
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
-      },
-      keyframes: {
-        "accordion-down": {
-          from: { height: "0" },
-          to: { height: "var(--radix-accordion-content-height)" },
-        },
-        "accordion-up": {
-          from: { height: "var(--radix-accordion-content-height)" },
-          to: { height: "0" },
-        },
-      },
-      animation: {
-        "accordion-down": "accordion-down 0.2s ease-out",
-        "accordion-up": "accordion-up 0.2s ease-out",
+        sans: ["-apple-system", "BlinkMacSystemFont", "Segoe UI", "Roboto", "Helvetica Neue", "Arial", "sans-serif"],
       },
     },
   },
