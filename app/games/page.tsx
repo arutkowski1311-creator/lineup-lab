@@ -70,7 +70,7 @@ export default function GamesPage() {
   useEffect(() => {
     fetch("/api/games")
       .then((res) => res.json())
-      .then((data) => setGames(data))
+      .then((data) => { if (Array.isArray(data)) setGames(data); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);

@@ -38,7 +38,8 @@ export default function DashboardPage() {
 
     fetch("/api/games")
       .then((res) => res.json())
-      .then((data: GameData[]) => {
+      .then((data) => {
+        if (!Array.isArray(data)) return;
         setGames(data);
         const live = data.find((g) => g.gameStatus === "live");
         setActiveGame(live ?? null);
