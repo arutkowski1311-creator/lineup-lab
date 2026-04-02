@@ -16,6 +16,7 @@ interface PlayerCardProps {
   };
   onEdit?: (player: PlayerCardProps["player"]) => void;
   compact?: boolean;
+  showRatings?: boolean;
 }
 
 function RatingDot({ value, label }: { value: number; label?: string }) {
@@ -44,7 +45,7 @@ function RatingDot({ value, label }: { value: number; label?: string }) {
   );
 }
 
-export function PlayerCard({ player, onEdit, compact = false }: PlayerCardProps) {
+export function PlayerCard({ player, onEdit, compact = false, showRatings = true }: PlayerCardProps) {
   const age = playerAge(player.dob);
   const name = playerFullName(player.firstName, player.lastName);
 
@@ -53,18 +54,20 @@ export function PlayerCard({ player, onEdit, compact = false }: PlayerCardProps)
       <button
         type="button"
         onClick={() => onEdit?.(player)}
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all bg-white/[0.03] border border-transparent hover:border-gold/20 card-glow hover:bg-white/[0.06] active:bg-white/[0.08]"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all bg-white/[0.03] border border-transparent hover:border-gold/20 card-glow hover:bg-white/[0.06] active:bg-white/[0.08] card-bg-image card-bg-cards team-initials-watermark"
       >
         <div className="flex-1 min-w-0">
           <span className="font-medium truncate block text-white">{name}</span>
           <span className="text-xs text-gold/50">Age {age}</span>
         </div>
-        <div className="flex items-center gap-1">
-          <RatingDot value={player.fieldingOverall} />
-          <RatingDot value={player.catching} />
-          <RatingDot value={player.throwing} />
-          <RatingDot value={player.battingOverall} />
-        </div>
+        {showRatings && (
+          <div className="flex items-center gap-1">
+            <RatingDot value={player.fieldingOverall} />
+            <RatingDot value={player.catching} />
+            <RatingDot value={player.throwing} />
+            <RatingDot value={player.battingOverall} />
+          </div>
+        )}
       </button>
     );
   }
@@ -73,7 +76,7 @@ export function PlayerCard({ player, onEdit, compact = false }: PlayerCardProps)
     <button
       type="button"
       onClick={() => onEdit?.(player)}
-      className="flex w-full flex-col gap-3 rounded-xl border border-gold/10 bg-white/[0.04] p-4 text-left shadow-sm transition-all card-glow hover:border-gold/30 hover:bg-white/[0.07] active:bg-white/[0.10]"
+      className="flex w-full flex-col gap-3 rounded-xl border border-gold/10 bg-white/[0.04] p-4 text-left shadow-sm transition-all card-glow hover:border-gold/30 hover:bg-white/[0.07] active:bg-white/[0.10] card-bg-image card-bg-cards team-initials-watermark"
     >
       <div className="flex items-center justify-between">
         <div>
@@ -81,12 +84,14 @@ export function PlayerCard({ player, onEdit, compact = false }: PlayerCardProps)
           <p className="text-sm text-gold/50">Age {age}</p>
         </div>
       </div>
-      <div className="grid grid-cols-4 gap-2">
-        <RatingDot value={player.fieldingOverall} label="Field" />
-        <RatingDot value={player.catching} label="Catch" />
-        <RatingDot value={player.throwing} label="Throw" />
-        <RatingDot value={player.battingOverall} label="Bat" />
-      </div>
+      {showRatings && (
+        <div className="grid grid-cols-4 gap-2">
+          <RatingDot value={player.fieldingOverall} label="Field" />
+          <RatingDot value={player.catching} label="Catch" />
+          <RatingDot value={player.throwing} label="Throw" />
+          <RatingDot value={player.battingOverall} label="Bat" />
+        </div>
+      )}
     </button>
   );
 }

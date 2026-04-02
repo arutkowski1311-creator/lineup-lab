@@ -23,7 +23,19 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <body className="font-sans antialiased" style={{ background: "hsl(0 0% 7%)", color: "hsl(40 20% 92%)" }}>
-        <div className="min-h-screen pb-20">
+        {/* Grass background with dark overlay */}
+        <div
+          className="fixed inset-0 z-0"
+          style={{
+            backgroundImage: "url('/images/grass-bg.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            backgroundRepeat: "no-repeat",
+          }}
+        >
+          <div className="absolute inset-0" style={{ background: "linear-gradient(180deg, hsl(0 0% 4% / 0.88) 0%, hsl(0 0% 6% / 0.92) 50%, hsl(0 0% 4% / 0.95) 100%)" }} />
+        </div>
+        <div className="relative z-10 min-h-screen pb-20">
           {children}
         </div>
         <BottomNav />

@@ -118,7 +118,7 @@ export default function GamesPage() {
             <Link key={game.id} href={gameHref(game)} className="block">
               <Card
                 className={cn(
-                  "card-glow rounded-none border-x border-y-0 border-border/30 bg-card/60 backdrop-blur-sm transition-all hover:bg-card/80",
+                  "card-glow rounded-none border-x border-y-0 border-border/30 bg-card/60 backdrop-blur-sm transition-all hover:bg-card/80 card-bg-image card-bg-scoreboard",
                   "first:rounded-t-lg first:border-t last:rounded-b-lg last:border-b",
                   game.gameStatus === "live" &&
                     "ring-1 ring-red-500/20 shadow-[0_0_12px_hsl(0_100%_50%/0.1)]"

@@ -108,6 +108,64 @@
     box-shadow: 0 0 20px hsl(var(--cardinal) / 0.15), 0 4px 12px hsl(0 0% 0% / 0.3);
   }
 
+  /* Image background cards */
+  .card-bg-image {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .card-bg-image::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.12;
+    z-index: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .card-bg-image:hover::before {
+    opacity: 0.18;
+  }
+
+  .card-bg-image > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .card-bg-cards::before {
+    background-image: url('/images/baseball-cards.jpg');
+  }
+
+  .card-bg-scoreboard::before {
+    background-image: url('/images/scoreboard.jpg');
+  }
+
+  .card-bg-fans::before {
+    background-image: url('/images/fans.jpg');
+  }
+
+  /* Team initials watermark */
+  .team-initials-watermark {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .team-initials-watermark::after {
+    content: "USC";
+    position: absolute;
+    right: -5px;
+    bottom: -15px;
+    font-size: 5rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.05em;
+    color: hsl(0 100% 30% / 0.08);
+    z-index: 0;
+    pointer-events: none;
+  }
+
   /* Gold gradient text */
   .text-gold-gradient {
     background: linear-gradient(135deg, hsl(43 100% 55%) 0%, hsl(46 100% 50%) 50%, hsl(40 90% 45%) 100%);

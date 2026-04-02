@@ -115,7 +115,7 @@ export default function DashboardPage() {
       {!loading && heroGame && (
         <Link href={activeGame ? `/games/${activeGame.id}/hub` : `/games/${heroGame.id}/hub`}>
           <div className="scoreboard-panel rounded-2xl p-[2px] bg-gradient-to-br from-gold/40 via-cardinal/30 to-gold/20">
-            <div className="rounded-[14px] bg-background/95 backdrop-blur p-5 space-y-4">
+            <div className="rounded-[14px] bg-background/95 backdrop-blur p-5 space-y-4 card-bg-image card-bg-scoreboard">
               {/* Status badge */}
               <div className="flex items-center justify-between">
                 {activeGame ? (
@@ -203,7 +203,7 @@ export default function DashboardPage() {
 
         {/* Roster */}
         <Link href="/roster" className="group">
-          <Card className="border-gold/20 bg-card card-glow transition-all h-full hover:scale-[1.02] hover:border-gold/40 active:scale-[0.98]">
+          <Card className="border-gold/20 bg-card card-glow transition-all h-full hover:scale-[1.02] hover:border-gold/40 active:scale-[0.98] card-bg-image card-bg-cards">
             <CardContent className="flex flex-col items-center justify-center gap-3 py-6">
               <div className="size-12 rounded-full bg-gold/10 flex items-center justify-center group-hover:bg-gold/20 transition-colors">
                 <Users className="size-6 text-gold" />
@@ -217,7 +217,7 @@ export default function DashboardPage() {
 
         {/* Game History */}
         <Link href="/games" className="group">
-          <Card className="border-border/50 bg-card card-glow transition-all h-full hover:scale-[1.02] active:scale-[0.98]">
+          <Card className="border-border/50 bg-card card-glow transition-all h-full hover:scale-[1.02] active:scale-[0.98] card-bg-image card-bg-scoreboard">
             <CardContent className="flex flex-col items-center justify-center gap-3 py-6">
               <div className="size-12 rounded-full bg-cardinal/10 flex items-center justify-center group-hover:bg-cardinal/20 transition-colors">
                 <Calendar className="size-6 text-cardinal-bright" />
@@ -232,7 +232,7 @@ export default function DashboardPage() {
         {/* Invite People (logged in only) */}
         {isLoggedIn ? (
           <Link href="/team/invites" className="group">
-            <Card className="border-border/50 bg-card card-glow transition-all h-full hover:scale-[1.02] active:scale-[0.98]">
+            <Card className="border-border/50 bg-card card-glow transition-all h-full hover:scale-[1.02] active:scale-[0.98] card-bg-image card-bg-fans">
               <CardContent className="flex flex-col items-center justify-center gap-3 py-6">
                 <div className="size-12 rounded-full bg-cardinal/10 flex items-center justify-center group-hover:bg-cardinal/20 transition-colors">
                   <UserPlus className="size-6 text-cardinal-bright" />
