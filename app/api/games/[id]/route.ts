@@ -2,13 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { getSession, ensureUserTeam } from "@/lib/auth";
 
-async function getTeamId(): Promise<string> {
-  const session = await getSession();
-  if (session) {
-    const membership = await ensureUserTeam(session.userId);
-    return membership.team.id;
+async function getTeamId(): Promise<string | null> {
+  try {
+    const session = await getSession();
+    if (session) {
+      const membership = await ensureUserTeam(session.userId);
+      return membership.team.id;
+    }
+  } catch {
+    // no session or DB error
   }
-  return "default-team"; // fallback for unauthenticated access during MVP
+  return null;
 }
 
 export async function GET(
