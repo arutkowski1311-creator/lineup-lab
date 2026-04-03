@@ -1,8 +1,8 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { POSITIONS, INNINGS } from "@/lib/types";
-import type { Position } from "@/lib/types";
+import { INNINGS, getPositionsForFormat } from "@/lib/types";
+import type { Position, DefensiveFormat } from "@/lib/types";
 import { Lock } from "lucide-react";
 
 interface FieldingAssignment {
@@ -23,6 +23,8 @@ interface FieldingGridProps {
   players: Player[];
   onCellClick?: (inning: number, position: Position) => void;
   lockedCells?: Set<string>;
+  defensiveFormat?: DefensiveFormat;
+  allPlayerIds?: string[];
 }
 
 export function FieldingGrid({
@@ -30,8 +32,11 @@ export function FieldingGrid({
   players,
   onCellClick,
   lockedCells,
+  defensiveFormat = "four_outfield",
+  allPlayerIds,
 }: FieldingGridProps) {
   const playerMap = new Map(players.map((p) => [p.id, p]));
+  const positions = getPositionsForFormat(defensiveFormat);
 
   function getAssignment(inning: number, position: Position) {
     return assignments.find(
@@ -43,18 +48,34 @@ export function FieldingGrid({
     return `${inning}-${position}`;
   }
 
+  // Calculate bench players per inning (players not assigned to any position)
+  function getBenchPlayers(inning: number): Player[] {
+    if (!allPlayerIds || allPlayerIds.length === 0) return [];
+    const assignedThisInning = new Set(
+      assignments
+        .filter((a) => a.inningNumber === inning)
+        .map((a) => a.playerId)
+    );
+    return allPlayerIds
+      .filter((id) => !assignedThisInning.has(id))
+      .map((id) => playerMap.get(id))
+      .filter((p): p is Player => !!p);
+  }
+
+  const hasBench = allPlayerIds && allPlayerIds.length > positions.length;
+
   return (
     <div className="overflow-x-auto -mx-4 px-4">
       <table className="w-full min-w-[420px] border-collapse text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-background px-2 py-2 text-left font-medium text-muted-foreground w-12">
+            <th className="sticky left-0 z-10 bg-[hsl(0_0%_7%)] px-2 py-2 text-left font-bold text-[hsl(46_100%_50%)] w-12">
               Pos
             </th>
             {INNINGS.map((inning) => (
               <th
                 key={inning}
-                className="px-1 py-2 text-center font-medium text-muted-foreground min-w-[60px]"
+                className="px-1 py-2 text-center font-medium text-[hsl(0_0%_55%)] min-w-[60px]"
               >
                 {inning}
               </th>
@@ -62,9 +83,9 @@ export function FieldingGrid({
           </tr>
         </thead>
         <tbody>
-          {POSITIONS.map((position) => (
-            <tr key={position} className="border-t border-border/50">
-              <td className="sticky left-0 z-10 bg-background px-2 py-1 font-bold text-xs">
+          {positions.map((position) => (
+            <tr key={position} className="border-t border-[hsl(0_0%_14%)]">
+              <td className="sticky left-0 z-10 bg-[hsl(0_0%_7%)] px-2 py-1 font-bold text-xs text-[hsl(46_100%_50%/0.8)]">
                 {position}
               </td>
               {INNINGS.map((inning) => {
@@ -84,13 +105,13 @@ export function FieldingGrid({
                       className={cn(
                         "flex items-center justify-center gap-0.5 w-full rounded px-1 py-1.5 text-xs font-medium transition-colors min-h-[32px]",
                         isLocked
-                          ? "bg-muted/80 text-muted-foreground cursor-default"
+                          ? "bg-[hsl(0_0%_12%)] text-[hsl(0_0%_40%)] cursor-default"
                           : player
-                            ? "bg-primary/10 text-foreground hover:bg-primary/20 active:bg-primary/30"
-                            : "bg-muted/30 text-muted-foreground hover:bg-muted/60"
+                            ? "bg-[hsl(46_100%_50%/0.1)] text-[hsl(0_0%_90%)] border border-[hsl(46_100%_50%/0.2)] hover:bg-[hsl(46_100%_50%/0.18)] active:bg-[hsl(46_100%_50%/0.25)]"
+                            : "bg-[hsl(0_0%_10%)] text-[hsl(0_0%_30%)] hover:bg-[hsl(0_0%_14%)] border border-[hsl(0_0%_14%)]"
                       )}
                     >
-                      {isLocked && <Lock className="size-3 shrink-0" />}
+                      {isLocked && <Lock className="size-3 shrink-0 text-[hsl(0_0%_35%)]" />}
                       <span className="truncate">
                         {player ? player.firstName : "-"}
                       </span>
@@ -100,6 +121,37 @@ export function FieldingGrid({
               })}
             </tr>
           ))}
+          {/* Bench row — shows players not in the field */}
+          {hasBench && (
+            <tr className="border-t-2 border-[hsl(0_0%_20%)]">
+              <td className="sticky left-0 z-10 bg-[hsl(0_0%_7%)] px-2 py-1 font-bold text-xs text-[hsl(0_0%_40%)]">
+                BN
+              </td>
+              {INNINGS.map((inning) => {
+                const bench = getBenchPlayers(inning);
+                return (
+                  <td key={inning} className="px-0.5 py-0.5">
+                    <div className="flex flex-col gap-0.5">
+                      {bench.length > 0 ? (
+                        bench.map((p) => (
+                          <div
+                            key={p.id}
+                            className="flex items-center justify-center w-full rounded px-1 py-1 text-xs font-medium bg-[hsl(0_0%_8%)] text-[hsl(0_0%_45%)] border border-[hsl(0_0%_12%)] min-h-[28px]"
+                          >
+                            <span className="truncate">{p.firstName}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="flex items-center justify-center w-full rounded px-1 py-1.5 text-xs text-[hsl(0_0%_25%)] min-h-[32px]">
+                          -
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                );
+              })}
+            </tr>
+          )}
         </tbody>
       </table>
     </div>

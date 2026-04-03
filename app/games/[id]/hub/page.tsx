@@ -21,7 +21,6 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScoreDisplay } from "@/components/softball/score-display";
 import { BaseDiamond } from "@/components/softball/base-diamond";
 import { OutTracker } from "@/components/softball/out-tracker";
@@ -96,7 +95,7 @@ export default function GameHubPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
+        <Loader2 className="size-6 animate-spin text-gold/50" />
       </div>
     );
   }
@@ -135,19 +134,29 @@ export default function GameHubPage() {
     <div className="flex flex-col gap-4 px-4 py-4 max-w-lg mx-auto pb-24">
       {/* Header */}
       <header className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.push("/games")}>
+        <Button variant="ghost" size="icon" className="text-gold/70 hover:text-gold hover:bg-gold/10" onClick={() => router.push("/games")}>
           <ArrowLeft className="size-5" />
         </Button>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <h1 className="text-lg font-bold truncate">
+            <h1 className="text-lg font-extrabold tracking-tight truncate text-gold-gradient">
               vs {game.opponentName}
             </h1>
-            <Badge variant={statusColor()}>{statusLabel()}</Badge>
+            <Badge
+              variant={statusColor()}
+              className={cn(
+                "uppercase text-[10px] font-bold tracking-wider",
+                isLive && "bg-red-600/20 text-red-400 border-red-500/30 shadow-[0_0_8px_hsl(0_100%_50%/0.3)]",
+                isFinal && "bg-gold/10 text-gold border-gold/30 shadow-[0_0_8px_hsl(46_100%_50%/0.2)]",
+                !isLive && !isFinal && "bg-white/5 text-white/40 border-white/10"
+              )}
+            >
+              {statusLabel()}
+            </Badge>
           </div>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <span>{formatDate(game.gameDate)}</span>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="outline" className="text-xs border-gold/20 text-gold/60">
               {game.homeOrAway === "home" ? "HOME" : "AWAY"}
             </Badge>
           </div>
@@ -156,42 +165,62 @@ export default function GameHubPage() {
 
       {/* Score Section */}
       {(isLive || isFinal) && (
-        <Card>
-          <CardContent className="py-4">
-            <div className="flex items-center justify-center gap-8">
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground font-medium">Us</p>
-                <p className="text-4xl font-bold tabular-nums">{totalUsRuns}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                  {isLive
-                    ? `${game.currentHalf === "top" ? "Top" : "Bot"} ${game.currentInning}`
-                    : "Final"}
-                </p>
-                {isLive && (
-                  <div className="flex items-center justify-center gap-3 mt-1">
-                    <OutTracker outs={game.currentOuts} size="sm" />
-                    <BaseDiamond
-                      runners={{
-                        first: !!parsedRunners.first,
-                        second: !!parsedRunners.second,
-                        third: !!parsedRunners.third,
-                      }}
-                      size="sm"
-                    />
-                  </div>
-                )}
-              </div>
-              <div className="text-center">
-                <p className="text-sm text-muted-foreground font-medium">
-                  {game.opponentName.slice(0, 8)}
-                </p>
-                <p className="text-4xl font-bold tabular-nums">{totalOppRuns}</p>
-              </div>
+        <div className="rounded-xl overflow-hidden border border-[hsl(0_0%_20%)]" style={{
+          background: "linear-gradient(180deg, hsl(0 0% 10%) 0%, hsl(0 0% 6%) 100%)",
+          boxShadow: "inset 0 1px 0 hsl(0 0% 18% / 0.4), 0 2px 8px hsl(0 0% 0% / 0.5)",
+        }}>
+          {/* Scoreboard header bar */}
+          <div className="flex items-center justify-between px-4 py-1.5 border-b border-[hsl(0_0%_18%)]" style={{
+            background: "linear-gradient(180deg, hsl(0 0% 14%) 0%, hsl(0 0% 10%) 100%)",
+          }}>
+            <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[hsl(0_0%_50%)]">Scoreboard</span>
+            <span className={cn(
+              "text-[10px] font-bold uppercase tracking-[0.15em]",
+              isLive ? "text-red-400" : "text-[hsl(0_0%_50%)]"
+            )}>
+              {isLive
+                ? `${game.currentHalf === "top" ? "TOP" : "BOT"} ${game.currentInning}`
+                : "FINAL"}
+            </span>
+          </div>
+          {/* Score area */}
+          <div className="flex items-center justify-center gap-10 px-5 py-5">
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(46_60%_55%)] mb-2">Us</p>
+              <p className="text-5xl font-mono font-black tabular-nums" style={{
+                color: "hsl(46 80% 60%)",
+                textShadow: "0 0 6px hsl(46 80% 50% / 0.3)",
+              }}>{totalUsRuns}</p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="text-center">
+              {isLive && (
+                <div className="flex items-center justify-center gap-3">
+                  <OutTracker outs={game.currentOuts} size="sm" />
+                  <BaseDiamond
+                    runners={{
+                      first: !!parsedRunners.first,
+                      second: !!parsedRunners.second,
+                      third: !!parsedRunners.third,
+                    }}
+                    size="sm"
+                  />
+                </div>
+              )}
+              {!isLive && (
+                <div className="w-px h-12 bg-[hsl(0_0%_20%)]" />
+              )}
+            </div>
+            <div className="text-center">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[hsl(0_0%_55%)] mb-2">
+                {game.opponentName.slice(0, 8).toUpperCase()}
+              </p>
+              <p className="text-5xl font-mono font-black tabular-nums" style={{
+                color: "hsl(0 0% 75%)",
+                textShadow: "0 0 4px hsl(0 0% 50% / 0.2)",
+              }}>{totalOppRuns}</p>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Quick Actions */}
@@ -199,7 +228,7 @@ export default function GameHubPage() {
         <Button
           variant="outline"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 border-gold/20 bg-white/[0.03] text-gold/80 hover:bg-gold/10 hover:text-gold hover:border-gold/40 transition-all"
           onClick={() => router.push(`/games/${gameId}/lineup`)}
         >
           <ListOrdered className="size-4 mr-1" />
@@ -209,7 +238,7 @@ export default function GameHubPage() {
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0"
+            className="shrink-0 border-gold/20 bg-white/[0.03] text-gold/80 hover:bg-gold/10 hover:text-gold hover:border-gold/40 transition-all"
             onClick={() => router.push(`/games/${gameId}/live`)}
           >
             <Radio className="size-4 mr-1" />
@@ -220,7 +249,7 @@ export default function GameHubPage() {
           <Button
             variant="outline"
             size="sm"
-            className="shrink-0"
+            className="shrink-0 border-gold/20 bg-white/[0.03] text-gold/80 hover:bg-gold/10 hover:text-gold hover:border-gold/40 transition-all"
             onClick={() => router.push(`/games/${gameId}/scorebook`)}
           >
             <BookOpen className="size-4 mr-1" />
@@ -230,7 +259,7 @@ export default function GameHubPage() {
         <Button
           variant="outline"
           size="sm"
-          className="shrink-0"
+          className="shrink-0 border-gold/20 bg-white/[0.03] text-gold/80 hover:bg-gold/10 hover:text-gold hover:border-gold/40 transition-all"
           onClick={() => window.print()}
         >
           <Printer className="size-4 mr-1" />
@@ -239,141 +268,107 @@ export default function GameHubPage() {
       </div>
 
       {/* Tabbed Content */}
-      <Tabs defaultValue="lineup">
-        <TabsList className="w-full">
-          <TabsTrigger value="lineup">Lineup</TabsTrigger>
-          <TabsTrigger value="scoring">Scoring</TabsTrigger>
-          <TabsTrigger value="plays">Plays</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="lineup">
-          <Card className="mt-3">
-            <CardHeader>
-              <CardTitle className="text-sm">Batting Order</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {battingOrder.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No lineup set yet.</p>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  {battingOrder
-                    .sort((a, b) => a.battingSlot - b.battingSlot)
-                    .map((entry) => {
-                      const player = playerMap.get(entry.playerId);
-                      return (
-                        <div
-                          key={entry.battingSlot}
-                          className="flex items-center gap-3 py-1.5 border-b border-border/30 last:border-0"
-                        >
-                          <span className="text-xs font-bold text-muted-foreground w-5 text-right">
-                            {entry.battingSlot}
-                          </span>
-                          <span className="text-sm font-medium">
-                            {player
-                              ? playerFullName(player.firstName, player.lastName)
-                              : "Unknown"}
-                          </span>
-                          {player?.jerseyNumber && (
-                            <span className="text-xs text-muted-foreground">
-                              #{player.jerseyNumber}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Mini fielding summary */}
-          {fieldingAssignments.length > 0 && (
-            <Card className="mt-3">
-              <CardHeader>
-                <CardTitle className="text-sm">Fielding - Inning 1</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-2">
-                  {fieldingAssignments
-                    .filter((a) => a.inningNumber === 1)
-                    .map((a) => {
-                      const player = playerMap.get(a.playerId);
-                      return (
-                        <div
-                          key={`${a.position}`}
-                          className="flex flex-col items-center gap-0.5 rounded-lg bg-muted/50 p-2"
-                        >
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase">
-                            {a.position}
-                          </span>
-                          <span className="text-xs font-medium truncate max-w-full">
-                            {player ? player.firstName : "-"}
-                          </span>
-                        </div>
-                      );
-                    })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
-
-        <TabsContent value="scoring">
-          <Card className="mt-3">
-            <CardContent className="py-4">
-              <ScoreDisplay
-                scoreByInning={scoreByInning}
-                opponentName={game.opponentName}
-                currentInning={isLive ? game.currentInning : undefined}
-              />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="plays">
-          <Card className="mt-3">
-            <CardContent className="py-4">
-              {recentPlays.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No plays recorded yet.
-                </p>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {recentPlays.map((play) => (
-                    <div
-                      key={play.id}
-                      className="flex items-start gap-3 py-2 border-b border-border/30 last:border-0"
-                    >
-                      <span className="text-xs font-bold text-muted-foreground bg-muted rounded px-1.5 py-0.5 shrink-0">
-                        {play.inning}
+      {/* Batting Order */}
+      <div>
+        <h3 className="text-sm font-bold text-gold/80 uppercase tracking-wider mb-2">Batting Order</h3>
+        {battingOrder.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">No lineup set yet.</p>
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            {battingOrder
+              .sort((a, b) => a.battingSlot - b.battingSlot)
+              .map((entry) => {
+                const player = playerMap.get(entry.playerId);
+                return (
+                  <div
+                    key={entry.battingSlot}
+                    className="flex items-center gap-3 rounded-lg bg-[hsl(0_0%_10%)] border border-[hsl(0_0%_16%)] px-3 py-2"
+                  >
+                    <span className="text-sm font-bold text-gold/60 w-6 text-center font-mono">
+                      {entry.battingSlot}
+                    </span>
+                    <span className="flex-1 text-sm font-medium text-white/90 truncate">
+                      {player
+                        ? playerFullName(player.firstName, player.lastName)
+                        : "Unknown"}
+                    </span>
+                    {player?.jerseyNumber && (
+                      <span className="text-xs text-gold/40 font-mono">
+                        #{player.jerseyNumber}
                       </span>
-                      <p className="text-sm">{play.description}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+
+      {/* Fielding - Inning 1 */}
+      {fieldingAssignments.length > 0 && (
+        <div>
+          <h3 className="text-sm font-bold text-gold/80 uppercase tracking-wider mb-2">Fielding - Inning 1</h3>
+          <div className="grid grid-cols-3 gap-1.5">
+            {fieldingAssignments
+              .filter((a) => a.inningNumber === 1)
+              .map((a) => {
+                const player = playerMap.get(a.playerId);
+                return (
+                  <div
+                    key={`${a.position}`}
+                    className="flex items-center gap-2 rounded-lg bg-[hsl(0_0%_10%)] border border-[hsl(0_0%_16%)] px-2.5 py-2"
+                  >
+                    <span className="text-[10px] font-bold text-gold/60 uppercase tracking-wider w-6">
+                      {a.position}
+                    </span>
+                    <span className="text-xs font-medium truncate text-white/80">
+                      {player ? player.firstName : "-"}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Go Live / Start Game Button */}
+      {!isLive && !isFinal && (
+        <Button
+          className="w-full bg-cardinal-gradient border border-cardinal-bright/30 text-white font-bold text-base min-h-[48px] shadow-lg shadow-cardinal/20 hover:opacity-90 active:scale-[0.97] transition-all"
+          onClick={() => router.push(`/games/${gameId}/live`)}
+        >
+          <Radio className="size-5 mr-2" />
+          Start Game
+        </Button>
+      )}
+      {isLive && (
+        <Button
+          className="w-full bg-cardinal-gradient border border-cardinal-bright/30 text-white font-bold text-base min-h-[48px] shadow-lg shadow-cardinal/20 hover:opacity-90 active:scale-[0.97] transition-all animate-pulse"
+          onClick={() => router.push(`/games/${gameId}/live`)}
+        >
+          <Radio className="size-5 mr-2" />
+          Go Live
+        </Button>
+      )}
 
       {/* Recap */}
-      <Card>
+      <Card className="border-gold/10 bg-white/[0.02] transition-all">
         <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Sparkles className="size-4" />
+          <CardTitle className="text-sm flex items-center gap-2 text-gold-gradient">
+            <Sparkles className="size-4 text-gold" />
             Game Recap
           </CardTitle>
         </CardHeader>
         <CardContent>
           {game.recapText ? (
-            <p className="text-sm leading-relaxed">{game.recapText}</p>
+            <p className="text-sm leading-relaxed text-white/80">{game.recapText}</p>
           ) : (
             <div className="flex flex-col items-center gap-3 py-2">
               <p className="text-sm text-muted-foreground">No recap available yet.</p>
               <Button
                 variant="outline"
                 size="sm"
+                className="border-gold/20 text-gold/80 hover:bg-gold/10 hover:text-gold"
                 onClick={generateRecap}
                 disabled={generatingRecap}
               >
@@ -392,10 +387,10 @@ export default function GameHubPage() {
       </Card>
 
       {/* Awards */}
-      <Card>
+      <Card className="border-gold/10 bg-white/[0.02] transition-all">
         <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <Trophy className="size-4" />
+          <CardTitle className="text-sm flex items-center gap-2 text-gold-gradient">
+            <Trophy className="size-4 text-gold" />
             Awards
           </CardTitle>
         </CardHeader>
@@ -411,14 +406,14 @@ export default function GameHubPage() {
                 return (
                   <div
                     key={award.id}
-                    className="flex flex-col items-center gap-1 rounded-lg bg-yellow-500/5 border border-yellow-500/20 p-3"
+                    className="flex flex-col items-center gap-1 rounded-lg bg-gold/5 border border-gold/20 p-3"
                   >
-                    <Trophy className="size-5 text-yellow-600" />
-                    <span className="text-xs font-bold text-center">
+                    <Trophy className="size-5 text-gold" />
+                    <span className="text-xs font-bold text-center text-gold/90">
                       {award.headline || award.awardType.replace(/_/g, " ")}
                     </span>
                     {player && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-white/50">
                         {playerFullName(player.firstName, player.lastName)}
                       </span>
                     )}
@@ -431,10 +426,10 @@ export default function GameHubPage() {
       </Card>
 
       {/* Media */}
-      <Card>
+      <Card className="border-gold/10 bg-white/[0.02] transition-all">
         <CardHeader>
-          <CardTitle className="text-sm flex items-center gap-2">
-            <ImageIcon className="size-4" />
+          <CardTitle className="text-sm flex items-center gap-2 text-gold-gradient">
+            <ImageIcon className="size-4 text-gold" />
             Media
           </CardTitle>
         </CardHeader>
@@ -448,7 +443,7 @@ export default function GameHubPage() {
               {media.map((item) => (
                 <div
                   key={item.id}
-                  className="aspect-square rounded-lg bg-muted flex items-center justify-center overflow-hidden"
+                  className="aspect-square rounded-lg bg-white/[0.03] border border-gold/10 flex items-center justify-center overflow-hidden"
                 >
                   {item.thumbnailUrl ? (
                     <img
@@ -457,7 +452,7 @@ export default function GameHubPage() {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <ImageIcon className="size-6 text-muted-foreground" />
+                    <ImageIcon className="size-6 text-gold/30" />
                   )}
                 </div>
               ))}
@@ -468,10 +463,10 @@ export default function GameHubPage() {
 
       {/* Livestream */}
       {game.livestreamUrl && (
-        <Card>
+        <Card className="border-gold/10 bg-white/[0.02] transition-all">
           <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Video className="size-4" />
+            <CardTitle className="text-sm flex items-center gap-2 text-gold-gradient">
+              <Video className="size-4 text-gold" />
               Livestream
             </CardTitle>
           </CardHeader>
