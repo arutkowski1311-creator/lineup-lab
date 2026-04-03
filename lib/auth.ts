@@ -170,14 +170,3 @@ export async function ensureUserTeam(userId: string) {
 
   return membership;
 }
-
-const COACH_ROLES = ["head_coach", "assistant_coach", "admin"];
-
-export function isCoachRole(role: string): boolean {
-  return COACH_ROLES.includes(role);
-}
-
-export async function getUserRole(userId: string): Promise<string | null> {
-  const membership = await getUserTeam(userId);
-  return membership?.role ?? null;
-}

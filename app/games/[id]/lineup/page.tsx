@@ -75,8 +75,8 @@ export default function LineupEditorPage() {
       const lineupData = await lineupRes.json();
 
       setGame(gameData);
-      setBattingOrder(Array.isArray(lineupData.battingOrder) ? lineupData.battingOrder : []);
-      setFieldingAssignments(Array.isArray(lineupData.fieldingAssignments) ? lineupData.fieldingAssignments : []);
+      setBattingOrder(lineupData.battingOrder || []);
+      setFieldingAssignments(lineupData.fieldingAssignments || []);
       setLineupLocked(lineupData.lineupLocked || false);
 
       // Build player list from batting order
@@ -200,26 +200,10 @@ export default function LineupEditorPage() {
     if (!game) return;
     setSaving(true);
     try {
-      // Use batting order player IDs, or fall back to fetching roster
-      let playerIds = battingOrder.map((b) => b.playerId);
-      if (playerIds.length === 0) {
-        const rosterRes = await fetch("/api/players");
-        if (rosterRes.ok) {
-          const rosterData = await rosterRes.json();
-          if (Array.isArray(rosterData)) {
-            playerIds = rosterData.map((p: { id: string }) => p.id);
-          }
-        }
-      }
-      if (playerIds.length === 0) {
-        toast.error("No players available");
-        setSaving(false);
-        return;
-      }
+      const playerIds = battingOrder.map((b) => b.playerId);
       const body: Record<string, unknown> = {
         playerIds,
         coachMode: game.coachMode,
-        defensiveFormat: game.defensiveFormat,
       };
 
       if (mode === "batting") {
@@ -281,7 +265,7 @@ export default function LineupEditorPage() {
           <ArrowLeft className="size-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-gold-gradient">
+          <h1 className="text-xl font-bold">
             {game ? `vs ${game.opponentName}` : "Lineup"}
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -293,34 +277,28 @@ export default function LineupEditorPage() {
       {/* Validation warnings */}
       {errorWarnings.length > 0 && (
         <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3">
-          <p className="text-sm font-medium text-red-400">
+          <p className="text-sm font-medium text-red-700">
             {errorWarnings.length} error(s)
           </p>
           {errorWarnings.slice(0, 3).map((w, i) => (
-            <p key={i} className="text-xs text-red-300 mt-1">{w.message}</p>
+            <p key={i} className="text-xs text-red-600 mt-1">{w.message}</p>
           ))}
         </div>
       )}
       {warnWarnings.length > 0 && (
-        <div className="rounded-lg bg-[hsl(46_100%_50%/0.08)] border border-[hsl(46_100%_50%/0.25)] p-3">
+        <div className="rounded-lg bg-yellow-500/10 border border-yellow-500/30 p-3">
           {warnWarnings.map((w, i) => (
-            <p key={i} className="text-xs text-[hsl(46_100%_60%)]">{w.message}</p>
+            <p key={i} className="text-xs text-yellow-700">{w.message}</p>
           ))}
         </div>
       )}
 
       <Tabs defaultValue="batting">
-        <TabsList className="w-full bg-[hsl(0_0%_10%)] border border-[hsl(0_0%_15%)]">
-          <TabsTrigger
-            value="batting"
-            className="flex-1 data-[state=active]:bg-[hsl(46_100%_50%/0.15)] data-[state=active]:text-[hsl(46_100%_50%)] data-[state=active]:shadow-[0_0_8px_hsl(46_100%_50%/0.2)]"
-          >
-            Batting Order
+        <TabsList className="w-full">
+          <TabsTrigger value="batting" className="flex-1">
+            Batting
           </TabsTrigger>
-          <TabsTrigger
-            value="fielding"
-            className="flex-1 data-[state=active]:bg-[hsl(46_100%_50%/0.15)] data-[state=active]:text-[hsl(46_100%_50%)] data-[state=active]:shadow-[0_0_8px_hsl(46_100%_50%/0.2)]"
-          >
+          <TabsTrigger value="fielding" className="flex-1">
             Fielding
           </TabsTrigger>
         </TabsList>
@@ -330,24 +308,28 @@ export default function LineupEditorPage() {
             {battingOrder.map((entry, index) => (
               <div
                 key={entry.playerId}
-                className="flex items-center gap-2 rounded-lg bg-[hsl(0_0%_10%)] border border-[hsl(0_0%_16%)] px-3 py-2"
+                className="flex items-center gap-2 rounded-lg border px-3 py-2"
               >
-                <span className="text-sm font-bold text-[hsl(46_100%_50%/0.7)] w-6 text-center">
+                <span className="text-sm font-bold text-muted-foreground w-6 text-center">
                   {entry.battingSlot}
                 </span>
-                <span className="flex-1 font-medium text-sm truncate text-[hsl(0_0%_93%)]">
+                <span className="flex-1 font-medium text-sm truncate">
                   {entry.player
                     ? playerFullName(entry.player.firstName, entry.player.lastName)
                     : entry.playerId}
                 </span>
-                {/* Rating badge removed — coach-only info */}
+                {entry.player && (
+                  <Badge variant="outline" className="text-xs">
+                    {entry.player.battingOverall}
+                  </Badge>
+                )}
                 {!lineupLocked && (
                   <div className="flex flex-col">
                     <button
                       type="button"
                       onClick={() => moveBatter(index, -1)}
                       disabled={index === 0}
-                      className="p-0.5 text-[hsl(46_100%_50%/0.6)] hover:text-[hsl(46_100%_50%)] disabled:opacity-30 transition-colors"
+                      className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
                     >
                       <ArrowUp className="size-3.5" />
                     </button>
@@ -355,7 +337,7 @@ export default function LineupEditorPage() {
                       type="button"
                       onClick={() => moveBatter(index, 1)}
                       disabled={index === battingOrder.length - 1}
-                      className="p-0.5 text-[hsl(46_100%_50%/0.6)] hover:text-[hsl(46_100%_50%)] disabled:opacity-30 transition-colors"
+                      className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30"
                     >
                       <ArrowDown className="size-3.5" />
                     </button>
@@ -378,7 +360,7 @@ export default function LineupEditorPage() {
       </Tabs>
 
       {/* Action buttons */}
-      <div className="fixed bottom-[4.5rem] inset-x-0 bg-[hsl(0_0%_7%/0.95)] backdrop-blur border-t border-[hsl(0_0%_15%)] px-4 py-3 z-40">
+      <div className="fixed bottom-16 inset-x-0 bg-background/95 backdrop-blur border-t px-4 py-3 md:bottom-0">
         <div className="max-w-lg mx-auto flex flex-wrap gap-2">
           {!lineupLocked && (
             <>
@@ -387,7 +369,6 @@ export default function LineupEditorPage() {
                 size="sm"
                 onClick={() => remix("batting")}
                 disabled={saving}
-                className="border-[hsl(0_0%_20%)] text-[hsl(0_0%_85%)] hover:bg-[hsl(0_0%_15%)]"
               >
                 <RefreshCw className="size-3.5 mr-1" />
                 Remix Batting
@@ -397,7 +378,6 @@ export default function LineupEditorPage() {
                 size="sm"
                 onClick={() => remix("fielding")}
                 disabled={saving}
-                className="border-[hsl(0_0%_20%)] text-[hsl(0_0%_85%)] hover:bg-[hsl(0_0%_15%)]"
               >
                 <RefreshCw className="size-3.5 mr-1" />
                 Remix Fielding
@@ -407,7 +387,6 @@ export default function LineupEditorPage() {
                 size="sm"
                 onClick={() => remix("all")}
                 disabled={saving}
-                className="border-[hsl(0_0%_20%)] text-[hsl(0_0%_85%)] hover:bg-[hsl(0_0%_15%)]"
               >
                 <RefreshCw className="size-3.5 mr-1" />
                 Remix All
@@ -416,9 +395,8 @@ export default function LineupEditorPage() {
                 size="sm"
                 onClick={() => saveLineup(true)}
                 disabled={saving || hasErrors(warnings)}
-                className="bg-cardinal-gradient text-white hover:opacity-90"
               >
-                <Lock className="size-3.5 mr-1 text-[hsl(46_100%_50%)]" />
+                <Lock className="size-3.5 mr-1" />
                 Lock Lineup
               </Button>
             </>
@@ -427,7 +405,6 @@ export default function LineupEditorPage() {
             variant="outline"
             size="sm"
             onClick={() => router.push(`/games/${gameId}/print`)}
-            className="border-[hsl(0_0%_20%)] text-[hsl(0_0%_85%)] hover:bg-[hsl(0_0%_15%)]"
           >
             <Printer className="size-3.5 mr-1" />
             Print
@@ -436,7 +413,6 @@ export default function LineupEditorPage() {
             <Button
               size="sm"
               onClick={() => router.push(`/games/${gameId}/live`)}
-              className="bg-cardinal-gradient text-white hover:opacity-90"
             >
               <PlayCircle className="size-3.5 mr-1" />
               Start Game
@@ -447,9 +423,9 @@ export default function LineupEditorPage() {
 
       {/* Position picker dialog for reassigning fielding */}
       <Dialog open={pickerOpen} onOpenChange={setPickerOpen}>
-        <DialogContent className="bg-[hsl(0_0%_9%)] border-[hsl(0_0%_16%)]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-gold-gradient">
+            <DialogTitle>
               Inning {pickerInning} - {pickerPosition}
             </DialogTitle>
           </DialogHeader>
@@ -462,8 +438,8 @@ export default function LineupEditorPage() {
                 className={cn(
                   "flex items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
                   pickerPlayerId === player.id
-                    ? "bg-[hsl(46_100%_50%/0.12)] ring-1 ring-[hsl(46_100%_50%/0.5)] text-[hsl(0_0%_93%)]"
-                    : "bg-[hsl(0_0%_11%)] text-[hsl(0_0%_85%)] hover:bg-[hsl(0_0%_14%)]"
+                    ? "bg-primary/10 ring-1 ring-primary"
+                    : "hover:bg-muted/50"
                 )}
               >
                 <span className="flex-1 font-medium text-sm">

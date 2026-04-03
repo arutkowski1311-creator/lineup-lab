@@ -127,10 +127,10 @@ export default function InvitesPage() {
   }
 
   const statusColor: Record<string, string> = {
-    pending: "bg-gold/15 text-gold",
-    accepted: "bg-green-500/15 text-green-400",
-    expired: "bg-white/5 text-white/40",
-    revoked: "bg-red-500/15 text-red-400",
+    pending: "bg-yellow-100 text-yellow-800",
+    accepted: "bg-green-100 text-green-800",
+    expired: "bg-gray-100 text-gray-600",
+    revoked: "bg-red-100 text-red-800",
   };
 
   if (loading) {
@@ -142,7 +142,7 @@ export default function InvitesPage() {
   }
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen bg-background pb-24">
       <div className="max-w-lg mx-auto px-4 pt-6">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -150,13 +150,12 @@ export default function InvitesPage() {
             variant="ghost"
             size="icon"
             onClick={() => router.back()}
-            className="text-gold/70 hover:text-gold"
           >
             <ArrowLeft className="size-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-bold text-gold-gradient">Manage Invites</h1>
-            <p className="text-sm" style={{ color: "hsl(40 5% 50%)" }}>
+            <h1 className="text-xl font-bold">Manage Invites</h1>
+            <p className="text-sm text-muted-foreground">
               Invite people to join your team
             </p>
           </div>
@@ -169,27 +168,26 @@ export default function InvitesPage() {
         )}
 
         {/* Create invite form */}
-        <div className="mb-6 rounded-xl border border-gold/10 bg-white/[0.04] p-5 card-bg-image card-bg-fans card-glow">
+        <Card className="mb-6">
+          <CardContent className="pt-6">
             <form onSubmit={handleCreate} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-gold-dim">Email address</label>
+                <label className="text-sm font-medium">Email address</label>
                 <Input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="parent@example.com"
                   required
-                  className="bg-white/5 border-white/10 focus:border-gold/40"
                 />
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-gold-dim">Role</label>
+                <label className="text-sm font-medium">Role</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  className="flex h-10 w-full rounded-md border px-3 py-2 text-sm"
-                  style={{ background: "hsl(0 0% 10%)", borderColor: "hsl(0 0% 18%)", color: "hsl(40 20% 88%)" }}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="parent">Parent / Guardian</option>
                   <option value="assistant_coach">Assistant Coach</option>
@@ -200,17 +198,16 @@ export default function InvitesPage() {
 
               {role === "parent" && players.length > 0 && (
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-sm font-medium text-gold-dim">
+                  <label className="text-sm font-medium">
                     Link to player{" "}
-                    <span className="font-normal" style={{ color: "hsl(40 5% 45%)" }}>
+                    <span className="text-muted-foreground font-normal">
                       (optional)
                     </span>
                   </label>
                   <select
                     value={linkedPlayerId}
                     onChange={(e) => setLinkedPlayerId(e.target.value)}
-                    className="flex h-10 w-full rounded-md border px-3 py-2 text-sm"
-                    style={{ background: "hsl(0 0% 10%)", borderColor: "hsl(0 0% 18%)", color: "hsl(40 20% 88%)" }}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   >
                     <option value="">No player link</option>
                     {players.map((p) => (
@@ -219,39 +216,43 @@ export default function InvitesPage() {
                       </option>
                     ))}
                   </select>
-                  <p className="text-xs" style={{ color: "hsl(40 5% 45%)" }}>
+                  <p className="text-xs text-muted-foreground">
                     Links this account as a guardian for the selected player
                   </p>
                 </div>
               )}
 
-              <button
+              <Button
                 type="submit"
                 disabled={submitting}
-                className="w-full h-11 rounded-lg font-semibold text-white bg-cardinal-gradient border border-cardinal-bright/30 hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="w-full h-11"
               >
-                <UserPlus className="size-4" />
+                <UserPlus className="size-4 mr-2" />
                 {submitting ? "Sending..." : "Create Invite"}
-              </button>
+              </Button>
             </form>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Invites list */}
-        <h2 className="text-sm font-semibold uppercase tracking-wider mb-3 text-gold-gradient">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
           Invites ({invites.length})
         </h2>
 
         {invites.length === 0 ? (
-          <div className="rounded-xl border border-gold/10 bg-white/[0.04] py-8 text-center card-bg-image card-bg-fans">
-              <Mail className="size-10 mx-auto mb-2" style={{ color: "hsl(40 5% 40%)" }} />
-              <p className="text-sm" style={{ color: "hsl(40 5% 45%)" }}>
+          <Card>
+            <CardContent className="py-8 text-center">
+              <Mail className="size-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">
                 No invites yet. Send one above.
               </p>
-          </div>
+            </CardContent>
+          </Card>
         ) : (
           <div className="flex flex-col gap-3">
             {invites.map((invite) => (
-              <div key={invite.id} className="rounded-xl border border-gold/10 bg-white/[0.04] p-4 card-glow">
+              <Card key={invite.id}>
+                <CardContent className="py-4">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="text-sm font-medium truncate">
@@ -307,7 +308,8 @@ export default function InvitesPage() {
                       )}
                     </div>
                   </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

@@ -48,13 +48,13 @@ export function FieldingGrid({
       <table className="w-full min-w-[420px] border-collapse text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-[hsl(0_0%_7%)] px-2 py-2 text-left font-bold text-[hsl(46_100%_50%)] w-12">
+            <th className="sticky left-0 z-10 bg-background px-2 py-2 text-left font-medium text-muted-foreground w-12">
               Pos
             </th>
             {INNINGS.map((inning) => (
               <th
                 key={inning}
-                className="px-1 py-2 text-center font-medium text-[hsl(0_0%_55%)] min-w-[60px]"
+                className="px-1 py-2 text-center font-medium text-muted-foreground min-w-[60px]"
               >
                 {inning}
               </th>
@@ -63,8 +63,8 @@ export function FieldingGrid({
         </thead>
         <tbody>
           {POSITIONS.map((position) => (
-            <tr key={position} className="border-t border-[hsl(0_0%_14%)]">
-              <td className="sticky left-0 z-10 bg-[hsl(0_0%_7%)] px-2 py-1 font-bold text-xs text-[hsl(46_100%_50%/0.8)]">
+            <tr key={position} className="border-t border-border/50">
+              <td className="sticky left-0 z-10 bg-background px-2 py-1 font-bold text-xs">
                 {position}
               </td>
               {INNINGS.map((inning) => {
@@ -84,13 +84,13 @@ export function FieldingGrid({
                       className={cn(
                         "flex items-center justify-center gap-0.5 w-full rounded px-1 py-1.5 text-xs font-medium transition-colors min-h-[32px]",
                         isLocked
-                          ? "bg-[hsl(0_0%_12%)] text-[hsl(0_0%_40%)] cursor-default"
+                          ? "bg-muted/80 text-muted-foreground cursor-default"
                           : player
-                            ? "bg-[hsl(46_100%_50%/0.1)] text-[hsl(0_0%_90%)] border border-[hsl(46_100%_50%/0.2)] hover:bg-[hsl(46_100%_50%/0.18)] active:bg-[hsl(46_100%_50%/0.25)]"
-                            : "bg-[hsl(0_0%_10%)] text-[hsl(0_0%_30%)] hover:bg-[hsl(0_0%_14%)] border border-[hsl(0_0%_14%)]"
+                            ? "bg-primary/10 text-foreground hover:bg-primary/20 active:bg-primary/30"
+                            : "bg-muted/30 text-muted-foreground hover:bg-muted/60"
                       )}
                     >
-                      {isLocked && <Lock className="size-3 shrink-0 text-[hsl(0_0%_35%)]" />}
+                      {isLocked && <Lock className="size-3 shrink-0" />}
                       <span className="truncate">
                         {player ? player.firstName : "-"}
                       </span>
